@@ -1,0 +1,855 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>ABHA Scan</title><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>ABHA Card Scanner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap">
+<style>
+/* Layout: phone-first app. Sticky top bar with Scan / Cards; scan view = live viewfinder with lock-on brackets; profile = stacked panels */
+:root{
+  --bg:#F3F6F4; --surface:#FFFFFF; --ink:#13231F; --muted:#56655F; --line:#D8E1DC;
+  --teal:#0F5C55; --teal-soft:#DCEFEA; --saffron:#C96A12; --saffron-soft:#FBEBD9;
+  --ok:#1C7A43; --ok-soft:#DDF2E4; --warn:#9A5B00; --warn-soft:#FCEFD6; --bad:#B42318; --bad-soft:#FDE4E1;
+  --vf:#0B1412;
+  --f-display:"Archivo","Noto Sans Devanagari","Noto Sans Gujarati","Noto Naskh Arabic","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans","Noto Sans Devanagari","Noto Sans Gujarati","Noto Naskh Arabic",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1513; --surface:#16201D; --ink:#E6EEEA; --muted:#9AABA4; --line:#2A3833;
+  --teal:#5CC2B5; --teal-soft:#173430; --saffron:#F0A35A; --saffron-soft:#3A2814;
+  --ok:#6FD39A; --ok-soft:#163223; --warn:#F2C064; --warn-soft:#3A2D12; --bad:#FF8C80; --bad-soft:#3E1B18; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1513; --surface:#16201D; --ink:#E6EEEA; --muted:#9AABA4; --line:#2A3833;
+  --teal:#5CC2B5; --teal-soft:#173430; --saffron:#F0A35A; --saffron-soft:#3A2814;
+  --ok:#6FD39A; --ok-soft:#163223; --warn:#F2C064; --warn-soft:#3A2D12; --bad:#FF8C80; --bad-soft:#3E1B18; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{overflow-x:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar-in{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:8px;display:flex;align-items:center;gap:10px}
+.brand{font-family:var(--f-display);font-weight:800;font-size:17px;display:flex;align-items:center;gap:6px;margin-right:auto;min-width:0;white-space:nowrap}
+.brand i{font-style:normal;font-family:var(--f-mono);font-size:9px;letter-spacing:.08em;padding:2px 5px;border-radius:4px;background:var(--saffron-soft);color:var(--saffron)}
+.tabs{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px;flex:none}
+.tabs a{text-decoration:none;color:var(--muted);font-weight:600;font-size:14px;padding:6px 14px;border-radius:999px}
+.tabs a[aria-current="page"]{background:var(--teal);color:var(--surface)}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+p{margin:0}
+.stack{display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+button,.btn{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+button:focus-visible,a:focus-visible,label.btn:focus-within{outline:3px solid var(--saffron);outline-offset:2px}
+.primary{background:var(--teal);border-color:var(--teal);color:var(--surface)}
+.hint{font-size:13px;color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.err{background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:10px 12px;font-size:14px}
+.busy{color:var(--muted);font-size:14px}
+input.txt{font:inherit;font-family:var(--f-mono);padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);flex:1;min-width:0;width:100%}
+
+/* languages */
+.langrow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-block:2px}
+.langrow::-webkit-scrollbar{display:none}
+.modebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rcard{border-radius:14px;padding:14px 16px;border:1px solid rgba(0,0,0,.14);box-shadow:0 6px 18px rgba(15,40,35,.12)}
+.rcard .rc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.rcard .rc-top b{font-family:var(--f-display);font-size:19px;line-height:1.2}
+.rcard .rc-top small{font-size:11px;font-weight:600;opacity:.75;text-align:end}
+.rcard dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 14px;margin:0;font-size:14px}
+.rcard dt{opacity:.75}
+.rcard dd{margin:0;min-width:0;overflow-wrap:anywhere;font-weight:600}
+.rcard .rc-no{font-family:var(--f-mono);font-size:18px;letter-spacing:.04em;margin-bottom:10px}
+.mycard{width:100%;height:auto;border-radius:12px;box-shadow:0 6px 18px rgba(15,40,35,.16);aspect-ratio:1012/638;background:var(--bg)}
+.langrow button{flex:none;padding:4px 11px;font-size:13px;border-radius:999px;font-weight:600}
+.langrow button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+html:not([lang="en"]) .eyebrow{letter-spacing:0;font-family:var(--f-body);font-weight:600}
+html[lang="ur"] body{line-height:1.8}
+html[lang="ur"] .who h2{line-height:1.5}
+
+/* viewfinder */
+.scanview{display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.vf{position:relative;width:100%;height:min(66svh,120vw);max-height:620px;border-radius:18px;overflow:hidden;background:var(--vf)}
+.vf video,.vf canvas{position:absolute;inset:0;width:100%;height:100%}
+.vf video{object-fit:cover}
+.vf-msg{position:absolute;left:12px;right:12px;bottom:12px;text-align:center;color:#fff;font-weight:600;font-size:15px;background:rgba(0,0,0,.45);border-radius:999px;padding:8px 14px;backdrop-filter:blur(6px)}
+.vf-msg.ok{background:rgba(28,122,67,.85)}
+.vf-off{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;color:#E6EEEA}
+.vf-off p{max-width:30ch;color:#B9C7C1;font-size:14px}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.flash.go{animation:flash .35s ease-out}
+@keyframes flash{0%{opacity:.85}100%{opacity:0}}
+.alt{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border-radius:999px;padding:8px 12px;font-size:14px}
+
+/* profile */
+.who{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:center}
+.avatar{width:64px;height:64px;border-radius:12px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:24px;color:#fff}
+.who h2{font-size:22px;line-height:1.15}
+.idline{font-family:var(--f-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 8px;border-radius:999px}
+.tag.ok{color:var(--ok);background:var(--ok-soft)}
+.swatch{width:10px;height:10px;border-radius:3px;border:1px solid rgba(0,0,0,.25)}
+.topbar{display:flex;flex-direction:column;gap:8px;padding-top:12px}
+.topbar .row{justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:7px 12px;font-size:13px;background:var(--surface)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+dl.kv{display:grid;grid-template-columns:104px minmax(0,1fr);gap:6px 12px;margin:0}
+dl.kv dt{color:var(--muted);font-size:13px}
+dl.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.note{font-size:13px;color:var(--warn);background:var(--warn-soft);padding:6px 10px;border-radius:8px}
+ul.clean{list-style:none;margin:0;padding:0}
+.fam li{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.scheme{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:12px 0;border-top:1px solid var(--line)}
+.scheme:first-child{border-top:0;padding-top:0}
+.scheme h3{font-size:15px;font-family:var(--f-body);font-weight:600}
+.scheme p{grid-column:1 / -1;font-size:14px;color:var(--muted)}
+.scheme .bring{color:var(--ink)}
+.pill{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;align-self:start}
+.pill.active{background:var(--ok-soft);color:var(--ok)}
+.pill.confirm{background:var(--warn-soft);color:var(--warn)}
+.pill.needs{background:var(--bad-soft);color:var(--bad)}
+details.common summary{cursor:pointer;font-weight:600}
+details.sch{border-top:1px solid var(--line);padding:10px 0}
+details.sch:last-child{padding-bottom:0}
+details.sch summary{cursor:pointer;font-weight:600;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;list-style:none}
+details.sch summary::-webkit-details-marker{display:none}
+details.sch summary::after{content:"+";color:var(--muted);font-weight:400;flex:none}
+details.sch[open] summary::after{content:"–"}
+details.sch summary .pill{margin-inline-start:auto}
+details.common ul{margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:14px}
+.locked{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.lockicon{width:40px;height:40px;border-radius:10px;background:var(--teal-soft);color:var(--teal);display:grid;place-items:center}
+.visit{display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.visit:first-child{border-top:0}
+.visit time{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:2px}
+.visit b{display:block}
+.visit span{display:block;font-size:14px;color:var(--muted)}
+.visit.upcoming time{color:var(--saffron)}
+.meds{display:grid;gap:8px}
+.med{padding:10px 12px;border-radius:10px;background:var(--bg)}
+.med b{font-weight:600;display:block}
+.med small{color:var(--muted);font-size:13px;display:block}
+.med.past{opacity:.75}
+.consentok{font-size:13px;color:var(--ok)}
+.fp{width:72px;height:72px;border-radius:50%;border:2px dashed var(--teal);display:grid;place-items:center;color:var(--teal);animation:pulse .5s ease-in-out 2}
+@keyframes pulse{50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.fp,.flash.go{animation:none}}
+
+/* cards */
+.cards{display:grid;gap:22px;padding-top:12px}
+.card-wrap{display:flex;flex-direction:column;gap:8px}
+.card-wrap img{width:100%;max-width:100%;height:auto;border-radius:12px;box-shadow:0 8px 24px rgba(15,40,35,.18)}
+.disclaimer{font-size:13px;color:var(--muted);border-inline-start:3px solid var(--saffron);padding-inline-start:10px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+</style>
+
+<header class="bar"><div class="bar-in">
+  <div class="brand">ABHA Scan <i>DEMO</i></div>
+  <nav class="tabs" aria-label="Views">
+    <a href="#scan" id="tab-scan" data-i="scan">Scan</a>
+    <a href="#cards" id="tab-cards" data-i="cards">Cards</a>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <section id="view-scan">
+    <div class="scanview" id="scanner">
+      <div class="modebar"><span class="hint" data-i="scanningAs">Scanning as</span><span class="seg" role="group" id="modeseg"><button data-mode="staff" data-i="staffMode">Hospital staff</button><button data-mode="patient" data-i="patientMode">Patient (own card)</button></span></div>
+      <div class="langrow langbar" role="group" aria-label="Language" id="scanlangs" hidden></div>
+      <div class="vf" id="vf">
+        <video id="video" playsinline muted autoplay></video>
+        <canvas id="freeze" hidden></canvas>
+        <canvas id="overlay"></canvas>
+        <div class="flash" id="flash"></div>
+        <div class="vf-off" id="vfoff" hidden>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg>
+          <b id="offtitle">Scan an ABHA card</b>
+          <p id="offtext">Turn on the camera and point it at the QR on the card.</p>
+          <button class="primary" id="startcam">Turn on camera</button>
+        </div>
+        <div class="vf-msg" id="vfmsg" hidden>Point at the QR on the ABHA card</div>
+      </div>
+      <div id="status" aria-live="polite"></div>
+      <div class="alt">
+        <label class="btn" for="photo"><span data-i="photo">Take a photo instead</span><input id="photo" type="file" accept="image/*" capture="environment" hidden></label>
+        <button id="flip" data-i="flip">Switch camera</button>
+      </div>
+      <div class="panel stack">
+        <p class="eyebrow" data-i="demo">Demo without a card</p>
+        <div class="chips" id="chips"></div>
+        <form class="row" id="manual-form" style="flex-wrap:nowrap">
+          <input class="txt" id="manual" data-ph="manualPh" placeholder="Last 4 digits, e.g. 0027" aria-label="ABHA number" inputmode="numeric">
+          <button type="submit" data-i="open">Open</button>
+        </form>
+      </div>
+    </div>
+    <div id="profile" hidden></div>
+  </section>
+
+  <section id="view-cards" hidden>
+    <div class="stack" style="padding-top:16px">
+      <h1 style="font-size:26px" data-i="cardsTitle">Demo ABHA cards</h1>
+      <p class="hint" data-i="cardsHint">Open this tab on a laptop and scan the screen with your phone, or save the images to print and laminate.</p>
+      <div class="legend"><span><i class="swatch" style="background:#F2C230"></i><span data-i="yellow">Yellow ration card</span></span><span><i class="swatch" style="background:#E8822A"></i><span data-i="orange">Orange ration card</span></span><span><i class="swatch" style="background:#F4F4F0"></i><span data-i="white">White ration card</span></span><span><i class="swatch" style="background:#B9C2BE"></i><span data-i="none">No ration card</span></span></div>
+      <p class="disclaimer" data-i="disclaimer">Made-up people and numbers for a design prototype. Not an official ABHA card; the QR only works in this prototype.</p>
+    </div>
+    <div class="cards" id="cards"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+const RATION={
+  yellow:{label:'Yellow ration card',fill:'#F2C230',ink:'#3D2E00'},
+  orange:{label:'Orange ration card',fill:'#E8822A',ink:'#3A1A00'},
+  white:{label:'White ration card',fill:'#F4F4F0',ink:'#3A3F3D'},
+  none:{label:'No ration card',fill:'#B9C2BE',ink:'#1F2926'}
+};
+const PATIENTS = [
+  {key:'santosh', abha:'91-4021-7735-0019', name:'Santosh Jadhav', names:{mr:'संतोष जाधव',hi:'संतोष जाधव',ur:'سنتوش جادھو',gu:'સંતોષ જાધવ'}, initials:'SJ', color:'#0F5C55',
+    dob:'14 Mar 1987', age:39, sex:'Male', blood:'B+', ration:'orange', rc:{no:'2720 4417 8835', head:'santosh', members:2, cat:'APL · NFSA priority household', income:'₹15,000 – ₹1 lakh a year', shop:'FPS #114, Bhavani Peth, Pune', grain:'5 kg free grain per person (PMGKAY)'},
+    address:'Room 12, Kamgar Chawl, Bhavani Peth, Pune 411042',
+    phone:'98xxxx4410', phoneNote:'Shared with wife Meena. Basic phone, no smartphone.',
+    occupation:'Daily wage construction worker',
+    family:[{name:'Meena Jadhav', rel:'Wife, 26', key:'meena', tag:'Pregnancy benefits active'}],
+    allergies:'None known',
+    schemes:[
+      {name:'MJPJAY + PM-JAY (Maharashtra)', status:'active', label:'Active', why:'Orange ration card, Maharashtra resident. Cashless hospital care up to ₹5 lakh per family a year. Used for his surgery in Nov 2026.'},
+      {name:'Free treatment at public hospitals', status:'active', label:'Active', why:'Free tests and treatment at Public Health Dept and civic hospitals in Maharashtra.'}],
+    visits:[
+      {date:'30 Nov 2026', place:'Sassoon General Hospital, Pune', what:'Surgery OPD review (booked)', upcoming:true},
+      {date:'14 Nov 2026', place:'Sassoon General Hospital, Pune', what:'Admitted · Gallbladder removal (keyhole)', note:'Discharged 16 Nov. Cashless under MJPJAY.'},
+      {date:'28 Oct 2026', place:'Sassoon General Hospital, Pune', what:'Surgery OPD · Ultrasound', note:'Gallstones found. Surgery advised.'},
+      {date:'12 Oct 2026', place:'Urban PHC, Bhavani Peth', what:'OPD · Upper stomach pain for 3 weeks', note:'Antacid trial. Referred for ultrasound.'}],
+    meds:{current:[{n:'Pantoprazole 40 mg',d:'1 tablet before breakfast',s:'Since 16 Nov · 14 days'},{n:'Paracetamol 500 mg',d:'Only if pain, up to 3 a day',s:'Since 16 Nov'}],
+          past:[{n:'Antacid gel',d:'2 spoons after meals',s:'12–28 Oct 2026'}]}},
+  {key:'meena', abha:'91-4021-7735-0027', name:'Meena Jadhav', names:{mr:'मीना जाधव',hi:'मीना जाधव',ur:'مینا جادھو',gu:'મીના જાધવ'}, initials:'MJ', color:'#B4462F',
+    dob:'2 Aug 2000', age:26, sex:'Female', blood:'O+', ration:'orange', rc:{no:'2720 4417 8835', head:'santosh', members:2, cat:'APL · NFSA priority household', income:'₹15,000 – ₹1 lakh a year', shop:'FPS #114, Bhavani Peth, Pune', grain:'5 kg free grain per person (PMGKAY)'},
+    address:'Room 12, Kamgar Chawl, Bhavani Peth, Pune 411042',
+    phone:'98xxxx4410', phoneNote:'Same number as husband Santosh. OTPs may reach his phone.',
+    occupation:'Homemaker',
+    family:[{name:'Santosh Jadhav', rel:'Husband, 39', key:'santosh', tag:'MJPJAY active'}],
+    allergies:'None known',
+    pregnancy:'Pregnant · about 24 weeks · due 17 Mar 2027 · first child',
+    schemes:[
+      {name:'JSSK — free delivery & newborn care', status:'active', label:'Active', why:'Switched on when her pregnancy was registered (2 Jul 2026). Free delivery incl. C-section, medicines, tests, blood, food and transport. Baby covered up to 1 year.'},
+      {name:'PMSMA — free specialist check-up on the 9th', status:'active', label:'Active', why:'Free antenatal check-up by a specialist on the 9th of every month. Next: 9 Dec 2026.'},
+      {name:'PMMVY 2.0 — ₹5,000 maternity benefit', status:'needs', label:'Needs document', why:'First child: ₹3,000 now and ₹2,000 after birth.', bring:'Bring: bank or post-office account in her own name, linked to Aadhaar. Apply at the Anganwadi.'},
+      {name:'JSY — cash for hospital delivery', status:'confirm', label:'Confirm', why:'In Maharashtra only for BPL, SC or ST women (₹600 urban).', bring:'Bring: BPL card or caste certificate if she has one.'},
+      {name:'MJPJAY + PM-JAY (family cover)', status:'active', label:'Active', why:'Covered through the household\'s orange ration card.'}],
+    visits:[
+      {date:'9 Dec 2026', place:'PHC Kasba', what:'PMSMA antenatal check-up (due)', upcoming:true},
+      {date:'9 Nov 2026', place:'PHC Kasba', what:'Antenatal check-up · Hb 10.2 g/dL', note:'Mild anaemia. Iron tablets increased.'},
+      {date:'9 Sep 2026', place:'PHC Kasba', what:'PMSMA check-up · Ultrasound · Td dose 2', note:'Baby growing normally.'},
+      {date:'1 Aug 2026', place:'PHC Kasba', what:'Antenatal check-up · Td dose 1', note:'BP normal.'},
+      {date:'2 Jul 2026', place:'Ayushman Arogya Mandir, Bhavani Peth', what:'Pregnancy registered · MCP card issued', note:'RCH ID created.'}],
+    meds:{current:[{n:'Iron + folic acid',d:'1 tablet twice a day after food',s:'Since 9 Nov (was once a day)'},{n:'Calcium 500 mg',d:'1 tablet twice a day',s:'Since 1 Aug'}],
+          past:[{n:'Folic acid 400 mcg',d:'1 tablet daily',s:'Jun–Jul 2026'}]}},
+  {key:'gangadhar', abha:'91-4021-7735-0035', name:'Gangadhar Kulkarni', names:{mr:'गंगाधर कुलकर्णी',hi:'गंगाधर कुलकर्णी',ur:'گنگادھر کلکرنی',gu:'ગંગાધર કુલકર્ણી'}, initials:'GK', color:'#4B4FA8',
+    dob:'1952 (year only)', age:74, sex:'Male', blood:'A+', ration:'yellow', rc:{no:'2721 0093 5562', head:'gangadhar', members:1, cat:'BPL · Antyodaya (AAY)', income:'Below ₹15,000 a year', shop:'FPS #27, Navi Peth, Solapur', grain:'35 kg free grain for the household (PMGKAY)'},
+    address:'Behind Ram Mandir, Navi Peth, Solapur 413001',
+    phone:'None', phoneNote:'No phone. Contact: neighbour Sunanda Patil, 97xxxx2281.',
+    occupation:'Retired, lives alone',
+    family:[], familyNote:'Lives alone. No caregiver listed — offer a social worker or ward attendant if admitted.',
+    allergies:'Sulfa drugs (rash)',
+    schemes:[
+      {name:'Ayushman Vay Vandana (70+)', status:'active', label:'Active', why:'Age 70+. Card created Feb 2026 through Aadhaar e-KYC. Extra ₹5 lakh hospital cover a year, any income.'},
+      {name:'MJPJAY + PM-JAY', status:'active', label:'Active', why:'Yellow ration card.'},
+      {name:'Elderly care clinic (NPHCE)', status:'active', label:'Active', why:'Geriatric OPD at the civil hospital: free check-ups and support devices.'},
+      {name:'Teleconsult at the Arogya Mandir', status:'confirm', label:'Suggest', why:'See the doctor from the nearby Arogya Mandir instead of travelling to Solapur.'}],
+    visits:[
+      {date:'10 Dec 2026', place:'Civil Hospital, Solapur', what:'Geriatric OPD review (booked)', upcoming:true},
+      {date:'10 Nov 2026', place:'Civil Hospital, Solapur', what:'Geriatric OPD · BP 142/88', note:'Sugar under control. Same medicines.'},
+      {date:'22 Aug 2026', place:'Civil Hospital, Solapur', what:'Admitted 3 days · Breathless at night', note:'Came by 108. Vay Vandana card used. Discharged stable.'},
+      {date:'18 Mar 2026', place:'Civil Hospital, Solapur', what:'Medicine OPD · BP & sugar tests', note:'High BP and type 2 diabetes diagnosed.'},
+      {date:'3 Mar 2026', place:'Ayushman Arogya Mandir, Navi Peth', what:'NCD screening · BP 168/96', note:'Referred to civil hospital.'}],
+    meds:{current:[{n:'Amlodipine 5 mg',d:'1 tablet every morning',s:'Since 22 Aug'},{n:'Metformin 500 mg',d:'1 tablet after breakfast and dinner',s:'Since 18 Mar'}],
+          past:[{n:'Telmisartan 40 mg',d:'1 tablet daily',s:'Mar–Aug 2026 · switched'}]}}
+];
+const COMMON=['Free tests and treatment at Public Health Dept & civic hospitals in Maharashtra','Free essential medicines and tests at public facilities (NHM)','108 — free emergency ambulance','104 — health helpline and complaints','14416 — Tele-MANAS mental health helpline, free, 24×7','Free teleconsultation at any Ayushman Arogya Mandir','TB: free tests and medicines, plus ₹1,000 a month during treatment'];
+const QR_PREFIX='ABHA-PROTO|',QR_SHORT='ABHA|';
+/* ---------------- languages (en, mr, hi, ur, gu) ---------------- */
+const LANGS=[['en','English'],['mr','मराठी'],['hi','हिंदी'],['ur','اردو'],['gu','ગુજરાતી']];
+const LI={en:0,mr:1,hi:2,ur:3,gu:4};
+let lang='en';
+const UI={
+scan:['Scan','स्कॅन','स्कैन','اسکین','સ્કેન'],
+cards:['Cards','कार्ड','कार्ड','کارڈ','કાર્ડ'],
+offTitle:['Scan an ABHA card','ABHA कार्ड स्कॅन करा','ABHA कार्ड स्कैन करें','ABHA کارڈ اسکین کریں','ABHA કાર્ડ સ્કેન કરો'],
+offText:['Turn on the camera and point it at the QR on the card.','कॅमेरा सुरू करा आणि कार्डावरील QR कडे धरा.','कैमरा चालू करें और कार्ड पर बने QR की ओर करें।','کیمرہ آن کریں اور اسے کارڈ پر QR کی طرف کریں۔','કૅમેરા ચાલુ કરો અને કાર્ડ પરના QR તરફ રાખો.'],
+startCam:['Turn on camera','कॅमेरा सुरू करा','कैमरा चालू करें','کیمرہ آن کریں','કૅમેરા ચાલુ કરો'],
+noCamTitle:['Live camera is off in this view','या दृश्यात थेट कॅमेरा बंद आहे','इस व्यू में लाइव कैमरा बंद है','اس ویو میں لائیو کیمرہ بند ہے','આ વ્યૂમાં લાઇવ કૅમેરા બંધ છે'],
+noCamText:['Use "Take a photo instead" below, or open the hosted version of this prototype on your phone.','खालील "त्याऐवजी फोटो घ्या" वापरा, किंवा फोनवर या प्रोटोटाइपची होस्ट केलेली आवृत्ती उघडा.','नीचे "इसके बजाय फ़ोटो लें" इस्तेमाल करें, या फ़ोन पर इस प्रोटोटाइप का होस्ट किया गया संस्करण खोलें।','نیچے "اس کے بجائے تصویر لیں" استعمال کریں، یا فون پر اس پروٹوٹائپ کا ہوسٹ کیا ہوا ورژن کھولیں۔','નીચે "તેના બદલે ફોટો લો" વાપરો, અથવા ફોન પર આ પ્રોટોટાઇપનું હોસ્ટ કરેલું વર્ઝન ખોલો.'],
+blockedTitle:['Camera blocked','कॅमेरा बंद केला आहे','कैमरा रोका गया है','کیمرہ بلاک ہے','કૅમેરા બ્લૉક છે'],
+point:['Point at the QR on the ABHA card','ABHA कार्डावरील QR कडे धरा','ABHA कार्ड पर बने QR की ओर करें','ABHA کارڈ پر QR کی طرف کریں','ABHA કાર્ડ પરના QR તરફ રાખો'],
+hold:['Hold steady…','स्थिर धरा…','स्थिर रखें…','ہلائیں نہیں…','સ્થિર રાખો…'],
+wrongQr:['Not a prototype card QR','हा प्रोटोटाइप कार्डचा QR नाही','यह प्रोटोटाइप कार्ड का QR नहीं है','یہ پروٹوٹائپ کارڈ کا QR نہیں ہے','આ પ્રોટોટાઇપ કાર્ડનો QR નથી'],
+captured:['✓ Captured · {n}','✓ स्कॅन झाले · {n}','✓ स्कैन हो गया · {n}','✓ اسکین ہو گیا · {n}','✓ સ્કેન થયું · {n}'],
+photo:['Take a photo instead','त्याऐवजी फोटो घ्या','इसके बजाय फ़ोटो लें','اس کے بجائے تصویر لیں','તેના બદલે ફોટો લો'],
+flip:['Switch camera','कॅमेरा बदला','कैमरा बदलें','کیمرہ بدلیں','કૅમેરા બદલો'],
+demo:['Demo without a card','कार्डशिवाय डेमो','बिना कार्ड के डेमो','کارڈ کے بغیر ڈیمو','કાર્ડ વગર ડેમો'],
+manualPh:['Last 4 digits, e.g. 0027','शेवटचे 4 अंक, उदा. 0027','आख़िरी 4 अंक, जैसे 0027','آخری 4 ہندسے، مثلاً 0027','છેલ્લા 4 અંક, દા.ત. 0027'],
+open:['Open','उघडा','खोलें','کھولیں','ખોલો'],
+reading:['Reading the QR code…','QR कोड वाचत आहे…','QR कोड पढ़ा जा रहा है…','QR کوڈ پڑھا جا رہا ہے…','QR કોડ વંચાઈ રહ્યો છે…'],
+noQr:['No QR found in that photo. Hold the phone 15–25 cm away so the QR is sharp, square-on and fills about a third of the photo. On a laptop screen, turn brightness up and tilt slightly to avoid glare.','या फोटोमध्ये QR सापडला नाही. फोन 15–25 सेमी अंतरावर, QR समोरून स्पष्ट दिसेल आणि फोटोचा सुमारे एक तृतीयांश भाग व्यापेल असा धरा. लॅपटॉप स्क्रीन असल्यास ब्राइटनेस वाढवा आणि चमक टाळण्यासाठी थोडा तिरका धरा.','इस फ़ोटो में QR नहीं मिला। फ़ोन 15–25 सेमी दूर रखें ताकि QR साफ़, सामने से और फ़ोटो का लगभग एक-तिहाई हिस्सा घेरे। लैपटॉप स्क्रीन हो तो ब्राइटनेस बढ़ाएँ और चमक से बचने के लिए थोड़ा तिरछा करें।','اس تصویر میں QR نہیں ملا۔ فون 15–25 سینٹی میٹر دور رکھیں تاکہ QR صاف، سامنے سے اور تصویر کا تقریباً ایک تہائی حصہ ہو۔ لیپ ٹاپ اسکرین ہو تو برائٹنس بڑھائیں اور چمک سے بچنے کے لیے تھوڑا ترچھا کریں۔','આ ફોટામાં QR મળ્યો નહીં. ફોન 15–25 સેમી દૂર રાખો જેથી QR સ્પષ્ટ, સામેથી અને ફોટાનો લગભગ ત્રીજો ભાગ રોકે. લૅપટૉપ સ્ક્રીન હોય તો બ્રાઇટનેસ વધારો અને ચમક ટાળવા થોડું ત્રાંસું રાખો.'],
+notProto:["That QR isn't one of the prototype cards.",'हा QR प्रोटोटाइप कार्डपैकी नाही.','यह QR प्रोटोटाइप कार्ड में से नहीं है।','یہ QR پروٹوٹائپ کارڈز میں سے نہیں ہے۔','આ QR પ્રોટોટાઇપ કાર્ડમાંનો નથી.'],
+badPhoto:["Couldn't open that photo. Try again.",'तो फोटो उघडता आला नाही. पुन्हा प्रयत्न करा.','वह फ़ोटो नहीं खुल सकी। फिर से कोशिश करें।','وہ تصویر نہیں کھل سکی۔ دوبارہ کوشش کریں۔','તે ફોટો ખૂલી શક્યો નહીં. ફરી પ્રયાસ કરો.'],
+noPatient:['No demo patient with that number. Try 0019, 0027 or 0035.','या क्रमांकाचा डेमो रुग्ण नाही. 0019, 0027 किंवा 0035 वापरून पाहा.','इस नंबर का कोई डेमो मरीज़ नहीं है। 0019, 0027 या 0035 आज़माएँ।','اس نمبر کا کوئی ڈیمو مریض نہیں۔ 0019، 0027 یا 0035 آزمائیں۔','આ નંબરનો કોઈ ડેમો દર્દી નથી. 0019, 0027 અથવા 0035 અજમાવો.'],
+cardsTitle:['Demo ABHA cards','डेमो ABHA कार्ड','डेमो ABHA कार्ड','ڈیمو ABHA کارڈ','ડેમો ABHA કાર્ડ'],
+cardsHint:['Open this tab on a laptop and scan the screen with your phone, or save the images to print and laminate.','हा टॅब लॅपटॉपवर उघडा आणि फोनने स्क्रीन स्कॅन करा, किंवा प्रिंट करून लॅमिनेट करण्यासाठी इमेज सेव्ह करा.','यह टैब लैपटॉप पर खोलें और फ़ोन से स्क्रीन स्कैन करें, या प्रिंट और लैमिनेट करने के लिए इमेज सेव करें।','یہ ٹیب لیپ ٹاپ پر کھولیں اور فون سے اسکرین اسکین کریں، یا پرنٹ اور لیمینیٹ کرنے کے لیے تصویریں محفوظ کریں۔','આ ટૅબ લૅપટૉપ પર ખોલો અને ફોનથી સ્ક્રીન સ્કેન કરો, અથવા પ્રિન્ટ અને લેમિનેટ કરવા ઇમેજ સેવ કરો.'],
+disclaimer:['Made-up people and numbers for a design prototype. Not an official ABHA card; the QR only works in this prototype.','डिझाइन प्रोटोटाइपसाठी काल्पनिक व्यक्ती आणि क्रमांक. हे अधिकृत ABHA कार्ड नाही; QR फक्त या प्रोटोटाइपमध्ये चालतो.','डिज़ाइन प्रोटोटाइप के लिए काल्पनिक लोग और नंबर। यह आधिकारिक ABHA कार्ड नहीं है; QR सिर्फ़ इसी प्रोटोटाइप में काम करता है।','ڈیزائن پروٹوٹائپ کے لیے فرضی لوگ اور نمبر۔ یہ سرکاری ABHA کارڈ نہیں؛ QR صرف اسی پروٹوٹائپ میں چلتا ہے۔','ડિઝાઇન પ્રોટોટાઇપ માટે કાલ્પનિક લોકો અને નંબર. આ સત્તાવાર ABHA કાર્ડ નથી; QR ફક્ત આ પ્રોટોટાઇપમાં જ ચાલે છે.'],
+save:['Save card image','कार्ड इमेज सेव्ह करा','कार्ड इमेज सेव करें','کارڈ کی تصویر محفوظ کریں','કાર્ડ ઇમેજ સેવ કરો'],
+saved:['Saved','सेव्ह झाले','सेव हो गया','محفوظ ہو گیا','સેવ થયું'],
+notSaved:['Not saved — try again','सेव्ह झाले नाही — पुन्हा करा','सेव नहीं हुआ — फिर करें','محفوظ نہیں ہوا — دوبارہ کریں','સેવ ન થયું — ફરી કરો'],
+next:['← Scan next card','← पुढचे कार्ड स्कॅन करा','← अगला कार्ड स्कैन करें','→ اگلا کارڈ اسکین کریں','← આગળનું કાર્ડ સ્કેન કરો'],
+closesIn:['Closes in {t}','{t} मध्ये बंद होईल','{t} में बंद होगा','{t} میں بند ہوگا','{t} માં બંધ થશે'],
+viewingAs:['Viewing as','कोण पाहत आहे','कौन देख रहा है','کون دیکھ رہا ہے','કોણ જુએ છે'],
+desk:['Help desk','मदत कक्ष','हेल्प डेस्क','ہیلپ ڈیسک','હેલ્પ ડેસ્ક'],
+doctor:['Doctor','डॉक्टर','डॉक्टर','ڈاکٹر','ડૉક્ટર'],
+verified:['✓ Verified from card','✓ कार्डवरून पडताळले','✓ कार्ड से सत्यापित','✓ کارڈ سے تصدیق شدہ','✓ કાર્ડથી ચકાસાયેલ'],
+personal:['Personal details','वैयक्तिक माहिती','व्यक्तिगत जानकारी','ذاتی تفصیلات','વ્યક્તિગત વિગતો'],
+age:['Age','वय','उम्र','عمر','ઉંમર'],
+born:['born','जन्म','जन्म','پیدائش','જન્મ'],
+sexBlood:['Sex · blood','लिंग · रक्तगट','लिंग · ब्लड ग्रुप','جنس · بلڈ گروپ','જાતિ · બ્લડ ગ્રુપ'],
+address:['Address','पत्ता','पता','پتہ','સરનામું'],
+phone:['Phone','फोन','फ़ोन','فون','ફોન'],
+ration:['Ration card','शिधापत्रिका','राशन कार्ड','راشن کارڈ','રેશન કાર્ડ'],
+work:['Work','काम','काम','کام','કામ'],
+allergies:['Allergies','ॲलर्जी','एलर्जी','الرجی','એલર્જી'],
+family:['Family','कुटुंब','परिवार','خاندان','પરિવાર'],
+schemesFor:['Schemes for {n}','{n} साठी योजना','{n} के लिए योजनाएँ','{n} کے لیے اسکیمیں','{n} માટે યોજનાઓ'],
+flags:['Flags come from verified records. The Arogya Mitra confirms before a benefit is used.','ही माहिती पडताळलेल्या नोंदींवरून आहे. लाभ वापरण्यापूर्वी आरोग्य मित्र खात्री करतात.','यह जानकारी सत्यापित रिकॉर्ड से है। लाभ इस्तेमाल करने से पहले आरोग्य मित्र पुष्टि करते हैं।','یہ معلومات تصدیق شدہ ریکارڈ سے ہے۔ فائدہ استعمال کرنے سے پہلے آروگیہ مترا تصدیق کرتے ہیں۔','આ માહિતી ચકાસાયેલા રેકોર્ડમાંથી છે. લાભ વાપરતા પહેલાં આરોગ્ય મિત્ર ખાતરી કરે છે.'],
+common:['Free services for everyone','सर्वांसाठी मोफत सेवा','सबके लिए मुफ़्त सेवाएँ','سب کے لیے مفت خدمات','બધા માટે મફત સેવાઓ'],
+history:['Health history & medicines','आरोग्य इतिहास आणि औषधे','स्वास्थ्य इतिहास और दवाइयाँ','صحت کی تاریخ اور دوائیں','આરોગ્ય ઇતિહાસ અને દવાઓ'],
+deskLocked:["Medical history isn't shown at the help desk. The doctor opens it in the consultation room with the patient's approval.",'मदत कक्षात वैद्यकीय इतिहास दाखवला जात नाही. डॉक्टर रुग्णाच्या परवानगीने तपासणी कक्षात तो उघडतात.','हेल्प डेस्क पर मेडिकल इतिहास नहीं दिखता। डॉक्टर मरीज़ की अनुमति से जाँच कक्ष में इसे खोलते हैं।','ہیلپ ڈیسک پر طبی تاریخ نہیں دکھائی جاتی۔ ڈاکٹر مریض کی اجازت سے معائنے کے کمرے میں اسے کھولتے ہیں۔','હેલ્પ ડેસ્ક પર મેડિકલ ઇતિહાસ દેખાતો નથી. ડૉક્ટર દર્દીની મંજૂરીથી તપાસ રૂમમાં તે ખોલે છે.'],
+askApprove:['Ask {n} to approve.','{n} यांची परवानगी घ्या.','{n} से अनुमति लें।','{n} سے اجازت لیں۔','{n} ની મંજૂરી લો.'],
+openOnce:['Past visits and medicines open for this visit only.','मागील भेटी आणि औषधे फक्त या भेटीसाठी उघडतील.','पिछली विज़िट और दवाइयाँ सिर्फ़ इस विज़िट के लिए खुलेंगी।','پچھلے دورے اور دوائیں صرف اسی دورے کے لیے کھلیں گی۔','અગાઉની મુલાકાતો અને દવાઓ ફક્ત આ મુલાકાત માટે ખૂલશે.'],
+fpBtn:['Patient approves (fingerprint)','रुग्णाची परवानगी (बोटांचा ठसा)','मरीज़ की अनुमति (फ़िंगरप्रिंट)','مریض کی اجازت (فنگر پرنٹ)','દર્દીની મંજૂરી (ફિંગરપ્રિન્ટ)'],
+otpBtn:['Send OTP instead','त्याऐवजी OTP पाठवा','इसके बजाय OTP भेजें','اس کے بجائے OTP بھیجیں','તેના બદલે OTP મોકલો'],
+otpPh:['4-digit OTP','4 अंकी OTP','4 अंकों का OTP','4 ہندسوں کا OTP','4 અંકનો OTP'],
+verify:['Verify','पडताळा','सत्यापित करें','تصدیق کریں','ચકાસો'],
+demoOtp:['Demo OTP: 4821','डेमो OTP: 4821','डेमो OTP: 4821','ڈیمو OTP: 4821','ડેમો OTP: 4821'],
+approved:['✓ Approved by {n} · access ends when you close this record','✓ {n} यांनी परवानगी दिली · ही नोंद बंद केल्यावर प्रवेश संपेल','✓ {n} ने अनुमति दी · यह रिकॉर्ड बंद करते ही पहुँच ख़त्म','✓ {n} نے اجازت دی · ریکارڈ بند کرتے ہی رسائی ختم','✓ {n} એ મંજૂરી આપી · આ રેકોર્ડ બંધ કરતાં જ ઍક્સેસ પૂરો'],
+visits:['Visits','भेटी','विज़िट','دورے','મુલાકાતો'],
+curMeds:['Current medicines','सध्याची औषधे','अभी की दवाइयाँ','موجودہ دوائیں','હાલની દવાઓ'],
+pastMeds:['Past medicines','पूर्वीची औषधे','पहले की दवाइयाँ','پچھلی دوائیں','અગાઉની દવાઓ'],
+clinicalNote:['','भेटींच्या नोंदी आणि औषधचिठ्ठ्या डॉक्टरांनी लिहिल्याप्रमाणे इंग्रजीत दाखवल्या आहेत.','विज़िट नोट और पर्चे वैसे ही अंग्रेज़ी में दिखाए गए हैं जैसे डॉक्टर ने लिखे।','دوروں کے نوٹ اور نسخے ویسے ہی انگریزی میں دکھائے گئے ہیں جیسے ڈاکٹر نے لکھے۔','મુલાકાતની નોંધ અને દવાની ચિઠ્ઠી ડૉક્ટરે લખી હોય તેમ અંગ્રેજીમાં બતાવી છે.'],
+active:['Active','सुरू','सक्रिय','فعال','સક્રિય'],
+needs:['Needs document','कागदपत्र हवे','दस्तावेज़ चाहिए','دستاویز درکار','દસ્તાવેજ જોઈએ'],
+confirm:['Confirm','खात्री करा','पुष्टि करें','تصدیق کریں','ખાતરી કરો'],
+suggest:['Suggest','सुचवा','सुझाएँ','تجویز','સૂચવો'],
+male:['Male','पुरुष','पुरुष','مرد','પુરુષ'],
+female:['Female','स्त्री','महिला','عورت','સ્ત્રી'],
+yellow:['Yellow ration card','पिवळी शिधापत्रिका','पीला राशन कार्ड','پیلا راشن کارڈ','પીળું રેશન કાર્ડ'],
+orange:['Orange ration card','केशरी शिधापत्रिका','केसरिया राशन कार्ड','نارنجی راشن کارڈ','કેસરી રેશન કાર્ડ'],
+white:['White ration card','पांढरी शिधापत्रिका','सफ़ेद राशन कार्ड','سفید راشن کارڈ','સફેદ રેશન કાર્ડ'],
+none:['No ration card','शिधापत्रिका नाही','राशन कार्ड नहीं','راشن کارڈ نہیں','રેશન કાર્ડ નથી'],
+yellowS:['YELLOW','पिवळी','पीला','پیلا','પીળું'],
+orangeS:['ORANGE','केशरी','केसरिया','نارنجی','કેસરી'],
+whiteS:['WHITE','पांढरी','सफ़ेद','سفید','સફેદ'],
+noneS:['NONE','नाही','नहीं','نہیں','નથી'],
+cardTitle:['ABHA Health ID','आरोग्य ओळखपत्र','स्वास्थ्य पहचान पत्र','صحت شناختی کارڈ','આરોગ્ય ઓળખપત્ર'],
+abhaNo:['ABHA NUMBER','ABHA क्रमांक','ABHA नंबर','ABHA نمبر','ABHA નંબર'],
+scanAt:['SCAN AT ANY GOVT HEALTH CENTRE','कोणत्याही सरकारी आरोग्य केंद्रात स्कॅन करा','किसी भी सरकारी स्वास्थ्य केंद्र पर स्कैन करें','کسی بھی سرکاری صحت مرکز پر اسکین کریں','કોઈપણ સરકારી આરોગ્ય કેન્દ્રમાં સ્કેન કરો'],
+recordsOpen:['Records open only when you approve','तुमच्या परवानगीनेच नोंदी उघडतात','आपकी अनुमति से ही रिकॉर्ड खुलते हैं','ریکارڈ صرف آپ کی اجازت سے کھلتے ہیں','તમારી મંજૂરીથી જ રેકોર્ડ ખૂલે છે'],
+scanningAs:['Scanning as','कोण स्कॅन करत आहे','कौन स्कैन कर रहा है','کون اسکین کر رہا ہے','કોણ સ્કેન કરે છે'],
+staffMode:['Hospital staff','रुग्णालय कर्मचारी','अस्पताल स्टाफ़','اسپتال عملہ','હોસ્પિટલ સ્ટાફ'],
+patientMode:['Patient (own card)','रुग्ण (स्वतःचे कार्ड)','मरीज़ (अपना कार्ड)','مریض (اپنا کارڈ)','દર્દી (પોતાનું કાર્ડ)'],
+patientRole:['Patient','रुग्ण','मरीज़','مریض','દર્દી'],
+langLabel:['Language','भाषा','भाषा','زبان','ભાષા'],
+myCard:['My ABHA card','माझे ABHA कार्ड','मेरा ABHA कार्ड','میرا ABHA کارڈ','મારું ABHA કાર્ડ'],
+myRation:['My ration card','माझी शिधापत्रिका','मेरा राशन कार्ड','میرا راشن کارڈ','મારું રેશન કાર્ડ'],
+rcNo:['Card number','कार्ड क्रमांक','कार्ड नंबर','کارڈ نمبر','કાર્ડ નંબર'],
+rcHead:['Head of family','कुटुंबप्रमुख','परिवार का मुखिया','سربراہِ خاندان','કુટુંબના વડા'],
+rcMembers:['Members','सदस्य','सदस्य','افراد','સભ્યો'],
+rcCat:['Category','प्रवर्ग','श्रेणी','زمرہ','શ્રેણી'],
+rcIncome:['Income band','उत्पन्न गट','आय सीमा','آمدنی کی حد','આવક મર્યાદા'],
+rcShop:['Ration shop','रेशन दुकान','राशन दुकान','راشن کی دکان','રેશન દુકાન'],
+rcGrain:['Each month','दरमहा','हर महीने','ہر مہینے','દર મહિને'],
+rcNote:['Your ration card colour is shared with the hospital so schemes are checked for you automatically.','तुमच्या शिधापत्रिकेचा रंग रुग्णालयाला कळतो, त्यामुळे तुमच्यासाठी योजना आपोआप तपासल्या जातात.','आपके राशन कार्ड का रंग अस्पताल को दिखता है, ताकि आपके लिए योजनाएँ अपने-आप जाँची जा सकें।','آپ کے راشن کارڈ کا رنگ اسپتال کو دکھتا ہے تاکہ آپ کے لیے اسکیمیں خود بخود جانچی جا سکیں۔','તમારા રેશન કાર્ડનો રંગ હોસ્પિટલને દેખાય છે, જેથી તમારા માટે યોજનાઓ આપમેળે તપાસાય.'],
+demoRation:['DEMO · not an official ration card','डेमो · अधिकृत शिधापत्रिका नाही','डेमो · आधिकारिक राशन कार्ड नहीं','ڈیمو · سرکاری راشن کارڈ نہیں','ડેમો · સત્તાવાર રેશન કાર્ડ નથી'],
+myHistory:['My visits & medicines','माझ्या भेटी आणि औषधे','मेरी विज़िट और दवाइयाँ','میرے دورے اور دوائیں','મારી મુલાકાતો અને દવાઓ'],
+myHistoryNote:['Only you, and doctors you approve, can see this.','हे फक्त तुम्ही आणि तुम्ही परवानगी दिलेले डॉक्टर पाहू शकतात.','इसे सिर्फ़ आप और आपकी अनुमति वाले डॉक्टर देख सकते हैं।','اسے صرف آپ اور آپ کی اجازت والے ڈاکٹر دیکھ سکتے ہیں۔','આ ફક્ત તમે અને તમે મંજૂરી આપેલા ડૉક્ટર જોઈ શકે છે.'],
+myBenefits:['Schemes for you','तुमच्यासाठी योजना','आपके लिए योजनाएँ','آپ کے لیے اسکیمیں','તમારા માટે યોજનાઓ'],
+allSchemes:['All health schemes','सर्व आरोग्य योजना','सभी स्वास्थ्य योजनाएँ','تمام صحت اسکیمیں','બધી આરોગ્ય યોજનાઓ'],
+allSchemesHint:['For information. Ask the Arogya Mitra at any hospital to check if you qualify.','माहितीसाठी. तुम्ही पात्र आहात का हे कोणत्याही रुग्णालयातील आरोग्य मित्रांना विचारा.','जानकारी के लिए। आप पात्र हैं या नहीं, यह किसी भी अस्पताल में आरोग्य मित्र से पूछें।','معلومات کے لیے۔ آپ اہل ہیں یا نہیں، یہ کسی بھی اسپتال میں آروگیہ مترا سے پوچھیں۔','માહિતી માટે. તમે પાત્ર છો કે નહીં તે કોઈપણ હોસ્પિટલમાં આરોગ્ય મિત્રને પૂછો.'],
+whatYouGet:['What you get','काय मिळते','क्या मिलता है','کیا ملتا ہے','શું મળે છે'],
+whoFor:['Who it is for','कोणासाठी','किसके लिए','کس کے لیے','કોના માટે'],
+youHave:['You have this','तुम्हाला लागू','आपको मिला है','آپ کو حاصل ہے','તમને મળે છે'],
+back:['← Back','← मागे','← वापस','→ واپس','← પાછા'],
+lost:['Lost card? Ask at any PHC help desk','कार्ड हरवले? कोणत्याही PHC मदत कक्षात विचारा','कार्ड खो गया? किसी भी PHC हेल्प डेस्क पर पूछें','کارڈ کھو گیا؟ کسی بھی PHC ہیلپ ڈیسک پر پوچھیں','કાર્ડ ખોવાયું? કોઈપણ PHC હેલ્પ ડેસ્ક પર પૂછો']
+};
+/* patient data text: English → [mr, hi, ur, gu]. Visit notes and prescriptions stay in English, as written by the doctor. */
+const DT={
+'Daily wage construction worker':['रोजंदारी बांधकाम मजूर','दिहाड़ी निर्माण मज़दूर','دیہاڑی دار تعمیراتی مزدور','રોજમદાર બાંધકામ મજૂર'],
+'Homemaker':['गृहिणी','गृहिणी','خاتونِ خانہ','ગૃહિણી'],
+'Retired, lives alone':['निवृत्त, एकटे राहतात','सेवानिवृत्त, अकेले रहते हैं','ریٹائرڈ، اکیلے رہتے ہیں','નિવૃત્ત, એકલા રહે છે'],
+'Shared with wife Meena. Basic phone, no smartphone.':['पत्नी मीनासोबत एकच फोन. साधा फोन, स्मार्टफोन नाही.','पत्नी मीना के साथ साझा। साधारण फ़ोन, स्मार्टफ़ोन नहीं।','بیوی مینا کے ساتھ مشترکہ۔ سادہ فون، اسمارٹ فون نہیں۔','પત્ની મીના સાથે એક જ ફોન. સાદો ફોન, સ્માર્ટફોન નથી.'],
+'Same number as husband Santosh. OTPs may reach his phone.':['पती संतोष यांचाच नंबर. OTP त्यांच्या फोनवर जाऊ शकतो.','पति संतोष वाला ही नंबर। OTP उनके फ़ोन पर जा सकता है।','شوہر سنتوش والا ہی نمبر۔ OTP ان کے فون پر جا سکتا ہے۔','પતિ સંતોષનો જ નંબર. OTP તેમના ફોન પર જઈ શકે છે.'],
+'No phone. Contact: neighbour Sunanda Patil, 97xxxx2281.':['फोन नाही. संपर्क: शेजारी सुनंदा पाटील, 97xxxx2281.','फ़ोन नहीं। संपर्क: पड़ोसी सुनंदा पाटिल, 97xxxx2281।','فون نہیں۔ رابطہ: پڑوسی سنندا پاٹل، 97xxxx2281۔','ફોન નથી. સંપર્ક: પડોશી સુનંદા પાટીલ, 97xxxx2281.'],
+'None':['नाही','नहीं','نہیں','નથી'],
+'APL · NFSA priority household':['दारिद्र्यरेषेवरील · NFSA प्राधान्य कुटुंब','APL · NFSA प्राथमिकता परिवार','APL · NFSA ترجیحی گھرانہ','APL · NFSA અગ્રતા પરિવાર'],
+'BPL · Antyodaya (AAY)':['दारिद्र्यरेषेखालील · अंत्योदय (AAY)','BPL · अंत्योदय (AAY)','BPL · انتیودیہ (AAY)','BPL · અંત્યોદય (AAY)'],
+'₹15,000 – ₹1 lakh a year':['वार्षिक ₹15,000 – ₹1 लाख','सालाना ₹15,000 – ₹1 लाख','سالانہ ₹15,000 – ₹1 لاکھ','વાર્ષિક ₹15,000 – ₹1 લાખ'],
+'Below ₹15,000 a year':['वार्षिक ₹15,000 पेक्षा कमी','सालाना ₹15,000 से कम','سالانہ ₹15,000 سے کم','વાર્ષિક ₹15,000 થી ઓછી'],
+'FPS #114, Bhavani Peth, Pune':['स्वस्त धान्य दुकान #114, भवानी पेठ, पुणे','उचित मूल्य दुकान #114, भवानी पेठ, पुणे','سستے اناج کی دکان #114، بھوانی پیٹھ، پونے','વાજબી ભાવની દુકાન #114, ભવાની પેઠ, પુણે'],
+'FPS #27, Navi Peth, Solapur':['स्वस्त धान्य दुकान #27, नवी पेठ, सोलापूर','उचित मूल्य दुकान #27, नवी पेठ, सोलापुर','سستے اناج کی دکان #27، نوی پیٹھ، سولاپور','વાજબી ભાવની દુકાન #27, નવી પેઠ, સોલાપુર'],
+'5 kg free grain per person (PMGKAY)':['प्रति व्यक्ती 5 किलो मोफत धान्य (PMGKAY)','प्रति व्यक्ति 5 किलो मुफ़्त अनाज (PMGKAY)','فی فرد 5 کلو مفت اناج (PMGKAY)','વ્યક્તિ દીઠ 5 કિલો મફત અનાજ (PMGKAY)'],
+'35 kg free grain for the household (PMGKAY)':['कुटुंबाला 35 किलो मोफत धान्य (PMGKAY)','परिवार को 35 किलो मुफ़्त अनाज (PMGKAY)','گھرانے کو 35 کلو مفت اناج (PMGKAY)','પરિવારને 35 કિલો મફત અનાજ (PMGKAY)'],
+'Ni-kshay Poshan — TB nutrition support':['निक्षय पोषण — क्षयरोग पोषण मदत','निक्षय पोषण — टीबी पोषण सहायता','نکشے پوشن — ٹی بی غذائی امداد','નિક્ષય પોષણ — ટીબી પોષણ સહાય'],
+'RBSK — child health screening':['RBSK — बाल आरोग्य तपासणी','RBSK — बाल स्वास्थ्य जाँच','RBSK — بچوں کی صحت کی جانچ','RBSK — બાળ આરોગ્ય તપાસ'],
+'Tele-MANAS — mental health helpline':['टेली-मानस — मानसिक आरोग्य हेल्पलाइन','टेली-मानस — मानसिक स्वास्थ्य हेल्पलाइन','ٹیلی مانس — ذہنی صحت ہیلپ لائن','ટેલી-માનસ — માનસિક આરોગ્ય હેલ્પલાઇન'],
+'Cashless hospital care up to ₹5 lakh per family a year at listed hospitals.':['नोंदणीकृत रुग्णालयांत कुटुंबाला दरवर्षी ₹5 लाखांपर्यंत कॅशलेस उपचार.','सूचीबद्ध अस्पतालों में परिवार को सालाना ₹5 लाख तक कैशलेस इलाज।','فہرست شدہ اسپتالوں میں خاندان کو سالانہ ₹5 لاکھ تک کیش لیس علاج۔','યાદીમાંની હોસ્પિટલોમાં પરિવારને વર્ષે ₹5 લાખ સુધી કૅશલેસ સારવાર.'],
+'Families in Maharashtra with a yellow, orange or white ration card.':['पिवळी, केशरी किंवा पांढरी शिधापत्रिका असलेली महाराष्ट्रातील कुटुंबे.','पीले, केसरिया या सफ़ेद राशन कार्ड वाले महाराष्ट्र के परिवार।','پیلے، نارنجی یا سفید راشن کارڈ والے مہاراشٹر کے خاندان۔','પીળું, કેસરી અથવા સફેદ રેશન કાર્ડ ધરાવતા મહારાષ્ટ્રના પરિવારો.'],
+'Extra ₹5 lakh hospital cover a year.':['दरवर्षी अतिरिक्त ₹5 लाख रुग्णालय संरक्षण.','सालाना अतिरिक्त ₹5 लाख अस्पताल कवर।','سالانہ اضافی ₹5 لاکھ اسپتال کوریج۔','વર્ષે વધારાનું ₹5 લાખ હોસ્પિટલ કવર.'],
+'Everyone aged 70 or older, any income.':['70 किंवा अधिक वयाचे सर्व, उत्पन्न कितीही असो.','70 या उससे ज़्यादा उम्र के सभी, आय कोई भी हो।','70 سال یا اس سے زیادہ عمر کے سب، آمدنی چاہے جو ہو۔','70 કે તેથી વધુ ઉંમરના બધા, આવક ગમે તે હોય.'],
+'Free delivery including C-section, medicines, tests, blood, food and transport. Sick newborns covered up to 1 year.':['सिझेरियनसह मोफत प्रसूती, औषधे, तपासण्या, रक्त, जेवण आणि वाहतूक. आजारी नवजातांना 1 वर्षापर्यंत संरक्षण.','सिज़ेरियन सहित मुफ़्त प्रसव, दवाइयाँ, जाँच, ख़ून, खाना और आने-जाने की सुविधा। बीमार नवजात को 1 साल तक कवर।','آپریشن سمیت مفت زچگی، دوائیں، ٹیسٹ، خون، کھانا اور آمد و رفت۔ بیمار نوزائیدہ کو 1 سال تک کوریج۔','સિઝેરિયન સહિત મફત પ્રસૂતિ, દવાઓ, તપાસ, લોહી, ભોજન અને વાહનવ્યવહાર. બીમાર નવજાતને 1 વર્ષ સુધી કવર.'],
+'All pregnant women delivering in a government hospital.':['सरकारी रुग्णालयात प्रसूती होणाऱ्या सर्व गरोदर महिला.','सरकारी अस्पताल में प्रसव कराने वाली सभी गर्भवती महिलाएँ।','سرکاری اسپتال میں زچگی کرانے والی تمام حاملہ خواتین۔','સરકારી હોસ્પિટલમાં પ્રસૂતિ કરાવતી બધી સગર્ભા મહિલાઓ.'],
+'Free check-up by a specialist on the 9th of every month.':['दर महिन्याच्या 9 तारखेला तज्ज्ञांकडून मोफत तपासणी.','हर महीने की 9 तारीख़ को विशेषज्ञ से मुफ़्त जाँच।','ہر مہینے کی 9 تاریخ کو ماہر سے مفت معائنہ۔','દર મહિનાની 9 તારીખે નિષ્ણાત દ્વારા મફત તપાસ.'],
+'Pregnant women in the 2nd or 3rd trimester.':['गरोदरपणाच्या दुसऱ्या किंवा तिसऱ्या तिमाहीतील महिला.','गर्भावस्था की दूसरी या तीसरी तिमाही वाली महिलाएँ।','حمل کی دوسری یا تیسری سہ ماہی والی خواتین۔','સગર્ભાવસ્થાના બીજા કે ત્રીજા ત્રિમાસિકની મહિલાઓ.'],
+'₹5,000 for the first child, paid in two parts; ₹6,000 if the second child is a girl.':['पहिल्या मुलासाठी दोन हप्त्यांत ₹5,000; दुसरी मुलगी असल्यास ₹6,000.','पहले बच्चे के लिए दो किस्तों में ₹5,000; दूसरी संतान बेटी हो तो ₹6,000।','پہلے بچے کے لیے دو قسطوں میں ₹5,000؛ دوسری اولاد بیٹی ہو تو ₹6,000۔','પહેલા બાળક માટે બે હપ્તામાં ₹5,000; બીજું સંતાન દીકરી હોય તો ₹6,000.'],
+'Pregnant and breastfeeding women with an Aadhaar-linked bank account.':['आधारशी जोडलेले बँक खाते असलेल्या गरोदर व स्तनदा माता.','आधार से जुड़े बैंक खाते वाली गर्भवती और स्तनपान कराने वाली महिलाएँ।','آدھار سے جڑے بینک کھاتے والی حاملہ اور دودھ پلانے والی خواتین۔','આધાર સાથે જોડાયેલ બૅન્ક ખાતું ધરાવતી સગર્ભા અને ધાવણ આપતી માતાઓ.'],
+'Cash help for giving birth in a hospital.':['रुग्णालयात प्रसूतीसाठी रोख मदत.','अस्पताल में प्रसव के लिए नकद सहायता।','اسپتال میں زچگی کے لیے نقد امداد۔','હોસ્પિટલમાં પ્રસૂતિ માટે રોકડ સહાય.'],
+'In Maharashtra: women who are BPL, SC or ST.':['महाराष्ट्रात: दारिद्र्यरेषेखालील, अनुसूचित जाती किंवा जमातीच्या महिला.','महाराष्ट्र में: BPL, SC या ST महिलाएँ।','مہاراشٹر میں: BPL، SC یا ST خواتین۔','મહારાષ્ટ્રમાં: BPL, SC અથવા ST મહિલાઓ.'],
+'Elderly care OPD, check-ups and support devices at district hospitals.':['जिल्हा रुग्णालयांत ज्येष्ठांसाठी OPD, तपासणी आणि सहाय्यक साधने.','ज़िला अस्पतालों में बुज़ुर्गों की OPD, जाँच और सहायक उपकरण।','ضلعی اسپتالوں میں بزرگوں کی OPD، معائنہ اور معاون آلات۔','જિલ્લા હોસ્પિટલોમાં વડીલો માટે OPD, તપાસ અને સહાયક સાધનો.'],
+'People aged 60 and above.':['60 व त्यापेक्षा अधिक वयाचे नागरिक.','60 साल और उससे ज़्यादा उम्र के लोग।','60 سال اور اس سے زیادہ عمر کے لوگ۔','60 અને તેથી વધુ ઉંમરના લોકો.'],
+'₹1,000 a month for food during TB treatment, plus free tests and medicines.':['क्षयरोग उपचारादरम्यान आहारासाठी दरमहा ₹1,000, तसेच मोफत तपासण्या व औषधे.','टीबी इलाज के दौरान खाने के लिए हर महीने ₹1,000, साथ में मुफ़्त जाँच और दवाइयाँ।','ٹی بی کے علاج کے دوران خوراک کے لیے ہر مہینے ₹1,000، ساتھ میں مفت ٹیسٹ اور دوائیں۔','ટીબી સારવાર દરમિયાન ખોરાક માટે દર મહિને ₹1,000, ઉપરાંત મફત તપાસ અને દવાઓ.'],
+'Everyone being treated for TB.':['क्षयरोगाचे उपचार घेणारे सर्व.','टीबी का इलाज करा रहे सभी लोग।','ٹی بی کا علاج کرانے والے سب لوگ۔','ટીબીની સારવાર લેતા બધા.'],
+'Free screening and treatment for birth defects, illness and growth delays.':['जन्मदोष, आजार आणि वाढीतील विलंबासाठी मोफत तपासणी व उपचार.','जन्मजात दोष, बीमारी और विकास में देरी की मुफ़्त जाँच और इलाज।','پیدائشی نقائص، بیماری اور نشوونما میں تاخیر کی مفت جانچ اور علاج۔','જન્મજાત ખામી, બીમારી અને વિકાસમાં વિલંબ માટે મફત તપાસ અને સારવાર.'],
+'Children from birth to 18 years.':['जन्मापासून 18 वर्षांपर्यंतची मुले.','जन्म से 18 साल तक के बच्चे।','پیدائش سے 18 سال تک کے بچے۔','જન્મથી 18 વર્ષ સુધીનાં બાળકો.'],
+'Free counselling by phone in your language: call 14416, any time.':['तुमच्या भाषेत फोनवर मोफत समुपदेशन: कधीही 14416 वर कॉल करा.','आपकी भाषा में फ़ोन पर मुफ़्त काउंसलिंग: कभी भी 14416 पर कॉल करें।','آپ کی زبان میں فون پر مفت کونسلنگ: کسی بھی وقت 14416 پر کال کریں۔','તમારી ભાષામાં ફોન પર મફત કાઉન્સેલિંગ: ગમે ત્યારે 14416 પર કૉલ કરો.'],
+'Everyone.':['सर्वांसाठी.','सभी के लिए।','سب کے لیے۔','બધા માટે.'],
+'1952 (year only)':['1952 (फक्त वर्ष)','1952 (सिर्फ़ साल)','1952 (صرف سال)','1952 (ફક્ત વર્ષ)'],
+'Wife, 26':['पत्नी, 26','पत्नी, 26','بیوی، 26','પત્ની, 26'],
+'Husband, 39':['पती, 39','पति, 39','شوہر، 39','પતિ, 39'],
+'Pregnancy benefits active':['गरोदरपणाचे लाभ सुरू','गर्भावस्था लाभ सक्रिय','حمل کے فوائد فعال','સગર્ભાવસ્થાના લાભ સક્રિય'],
+'MJPJAY active':['MJPJAY सुरू','MJPJAY सक्रिय','MJPJAY فعال','MJPJAY સક્રિય'],
+'Lives alone. No caregiver listed — offer a social worker or ward attendant if admitted.':['एकटे राहतात. काळजीवाहक नोंदवलेला नाही — दाखल झाल्यास समाजसेवक किंवा वॉर्ड परिचर द्या.','अकेले रहते हैं। कोई देखभालकर्ता दर्ज नहीं — भर्ती होने पर सामाजिक कार्यकर्ता या वार्ड अटेंडेंट दें।','اکیلے رہتے ہیں۔ کوئی دیکھ بھال کرنے والا درج نہیں — داخلے پر سوشل ورکر یا وارڈ اٹینڈنٹ دیں۔','એકલા રહે છે. કોઈ સંભાળ રાખનાર નોંધાયેલ નથી — દાખલ થાય તો સમાજ કાર્યકર અથવા વૉર્ડ સહાયક આપો.'],
+'None known':['माहीत नाही','कोई ज्ञात नहीं','کوئی معلوم نہیں','કોઈ જાણીતી નથી'],
+'Sulfa drugs (rash)':['सल्फा औषधे (पुरळ)','सल्फा दवाएँ (चकत्ते)','سلفا دوائیں (دانے)','સલ્ફા દવાઓ (ચકામા)'],
+'Pregnant · about 24 weeks · due 17 Mar 2027 · first child':['गरोदर · सुमारे 24 आठवडे · अपेक्षित तारीख 17 Mar 2027 · पहिले मूल','गर्भवती · लगभग 24 हफ़्ते · संभावित तारीख़ 17 Mar 2027 · पहला बच्चा','حاملہ · تقریباً 24 ہفتے · متوقع تاریخ 17 Mar 2027 · پہلا بچہ','સગર્ભા · આશરે 24 અઠવાડિયાં · અપેક્ષિત તારીખ 17 Mar 2027 · પહેલું બાળક'],
+'MJPJAY + PM-JAY (Maharashtra)':['MJPJAY + PM-JAY (महाराष्ट्र)','MJPJAY + PM-JAY (महाराष्ट्र)','MJPJAY + PM-JAY (مہاراشٹر)','MJPJAY + PM-JAY (મહારાષ્ટ્ર)'],
+'Free treatment at public hospitals':['सरकारी रुग्णालयांत मोफत उपचार','सरकारी अस्पतालों में मुफ़्त इलाज','سرکاری اسپتالوں میں مفت علاج','સરકારી હોસ્પિટલોમાં મફત સારવાર'],
+'JSSK — free delivery & newborn care':['JSSK — मोफत प्रसूती व नवजात काळजी','JSSK — मुफ़्त प्रसव और नवजात देखभाल','JSSK — مفت زچگی اور نوزائیدہ کی دیکھ بھال','JSSK — મફત પ્રસૂતિ અને નવજાત સંભાળ'],
+'PMSMA — free specialist check-up on the 9th':['PMSMA — दर महिन्याच्या 9 तारखेला मोफत तज्ज्ञ तपासणी','PMSMA — हर महीने 9 तारीख़ को मुफ़्त विशेषज्ञ जाँच','PMSMA — ہر مہینے کی 9 تاریخ کو مفت ماہر معائنہ','PMSMA — દર મહિનાની 9 તારીખે મફત નિષ્ણાત તપાસ'],
+'PMMVY 2.0 — ₹5,000 maternity benefit':['PMMVY 2.0 — ₹5,000 मातृत्व लाभ','PMMVY 2.0 — ₹5,000 मातृत्व लाभ','PMMVY 2.0 — ₹5,000 زچگی امداد','PMMVY 2.0 — ₹5,000 માતૃત્વ લાભ'],
+'JSY — cash for hospital delivery':['JSY — रुग्णालयात प्रसूतीसाठी रोख मदत','JSY — अस्पताल में प्रसव के लिए नकद सहायता','JSY — اسپتال میں زچگی کے لیے نقد امداد','JSY — હોસ્પિટલમાં પ્રસૂતિ માટે રોકડ સહાય'],
+'MJPJAY + PM-JAY (family cover)':['MJPJAY + PM-JAY (कुटुंब संरक्षण)','MJPJAY + PM-JAY (परिवार कवर)','MJPJAY + PM-JAY (خاندانی کوریج)','MJPJAY + PM-JAY (પરિવાર કવર)'],
+'Ayushman Vay Vandana (70+)':['आयुष्मान वय वंदना (70+)','आयुष्मान वय वंदना (70+)','آیوشمان وے وندنا (70+)','આયુષ્માન વય વંદના (70+)'],
+'Elderly care clinic (NPHCE)':['ज्येष्ठ नागरिक दवाखाना (NPHCE)','बुज़ुर्ग देखभाल क्लिनिक (NPHCE)','بزرگوں کا کلینک (NPHCE)','વડીલ સંભાળ ક્લિનિક (NPHCE)'],
+'Teleconsult at the Arogya Mandir':['आरोग्य मंदिरात टेलिकन्सल्ट','आरोग्य मंदिर में टेलीकंसल्ट','آروگیہ مندر میں ٹیلی کنسلٹ','આરોગ્ય મંદિરમાં ટેલિકન્સલ્ટ'],
+'Orange ration card, Maharashtra resident. Cashless hospital care up to ₹5 lakh per family a year. Used for his surgery in Nov 2026.':['केशरी शिधापत्रिका, महाराष्ट्राचे रहिवासी. कुटुंबाला दरवर्षी ₹5 लाखांपर्यंत कॅशलेस रुग्णालय उपचार. Nov 2026 मधील शस्त्रक्रियेसाठी वापरले.','केसरिया राशन कार्ड, महाराष्ट्र निवासी। परिवार को सालाना ₹5 लाख तक कैशलेस अस्पताल इलाज। Nov 2026 में उनकी सर्जरी के लिए इस्तेमाल हुआ।','نارنجی راشن کارڈ، مہاراشٹر کے رہائشی۔ خاندان کو سالانہ ₹5 لاکھ تک کیش لیس اسپتال علاج۔ Nov 2026 میں ان کی سرجری کے لیے استعمال ہوا۔','કેસરી રેશન કાર્ડ, મહારાષ્ટ્રના રહેવાસી. પરિવારને વર્ષે ₹5 લાખ સુધી કૅશલેસ હોસ્પિટલ સારવાર. Nov 2026 માં તેમની સર્જરી માટે વપરાયું.'],
+'Free tests and treatment at Public Health Dept and civic hospitals in Maharashtra.':['महाराष्ट्रातील सार्वजनिक आरोग्य विभाग व महापालिका रुग्णालयांत मोफत तपासण्या व उपचार.','महाराष्ट्र के सार्वजनिक स्वास्थ्य विभाग और नगर निगम अस्पतालों में मुफ़्त जाँच और इलाज।','مہاراشٹر کے محکمہ صحت عامہ اور میونسپل اسپتالوں میں مفت ٹیسٹ اور علاج۔','મહારાષ્ટ્રના જાહેર આરોગ્ય વિભાગ અને મહાનગરપાલિકા હોસ્પિટલોમાં મફત તપાસ અને સારવાર.'],
+'Switched on when her pregnancy was registered (2 Jul 2026). Free delivery incl. C-section, medicines, tests, blood, food and transport. Baby covered up to 1 year.':['गरोदरपणाची नोंद झाल्यावर सुरू (2 Jul 2026). सिझेरियनसह मोफत प्रसूती, औषधे, तपासण्या, रक्त, जेवण आणि वाहतूक. बाळाला 1 वर्षापर्यंत संरक्षण.','गर्भावस्था दर्ज होते ही चालू (2 Jul 2026)। सिज़ेरियन सहित मुफ़्त प्रसव, दवाइयाँ, जाँच, ख़ून, खाना और आने-जाने की सुविधा। बच्चे को 1 साल तक कवर।','حمل درج ہوتے ہی فعال (2 Jul 2026)۔ آپریشن سمیت مفت زچگی، دوائیں، ٹیسٹ، خون، کھانا اور آمد و رفت۔ بچے کو 1 سال تک کوریج۔','સગર્ભાવસ્થા નોંધાતાં જ શરૂ (2 Jul 2026). સિઝેરિયન સહિત મફત પ્રસૂતિ, દવાઓ, તપાસ, લોહી, ભોજન અને વાહનવ્યવહાર. બાળકને 1 વર્ષ સુધી કવર.'],
+'Free antenatal check-up by a specialist on the 9th of every month. Next: 9 Dec 2026.':['दर महिन्याच्या 9 तारखेला तज्ज्ञांकडून मोफत गरोदरपण तपासणी. पुढील: 9 Dec 2026.','हर महीने की 9 तारीख़ को विशेषज्ञ से मुफ़्त प्रसव-पूर्व जाँच। अगली: 9 Dec 2026।','ہر مہینے کی 9 تاریخ کو ماہر سے مفت قبل از پیدائش معائنہ۔ اگلا: 9 Dec 2026۔','દર મહિનાની 9 તારીખે નિષ્ણાત દ્વારા મફત પ્રસૂતિ પૂર્વ તપાસ. આગળની: 9 Dec 2026.'],
+'First child: ₹3,000 now and ₹2,000 after birth.':['पहिले मूल: आता ₹3,000 आणि जन्मानंतर ₹2,000.','पहला बच्चा: अभी ₹3,000 और जन्म के बाद ₹2,000।','پہلا بچہ: ابھی ₹3,000 اور پیدائش کے بعد ₹2,000۔','પહેલું બાળક: હમણાં ₹3,000 અને જન્મ પછી ₹2,000.'],
+'Bring: bank or post-office account in her own name, linked to Aadhaar. Apply at the Anganwadi.':['आणा: तिच्या स्वतःच्या नावाचे, आधारशी जोडलेले बँक किंवा पोस्ट खाते. अर्ज अंगणवाडीत करा.','लाएँ: उनके अपने नाम का, आधार से जुड़ा बैंक या डाकघर खाता। आवेदन आंगनवाड़ी में करें।','لائیں: ان کے اپنے نام کا، آدھار سے جڑا بینک یا ڈاک خانہ کھاتہ۔ درخواست آنگن واڑی میں دیں۔','લાવો: તેમના પોતાના નામનું, આધાર સાથે જોડાયેલું બૅન્ક અથવા પોસ્ટ ખાતું. અરજી આંગણવાડીમાં કરો.'],
+'In Maharashtra only for BPL, SC or ST women (₹600 urban).':['महाराष्ट्रात फक्त दारिद्र्यरेषेखालील, अनुसूचित जाती किंवा जमातीच्या महिलांसाठी (शहरी ₹600).','महाराष्ट्र में सिर्फ़ BPL, SC या ST महिलाओं के लिए (शहरी ₹600)।','مہاراشٹر میں صرف BPL، SC یا ST خواتین کے لیے (شہری ₹600)۔','મહારાષ્ટ્રમાં ફક્ત BPL, SC અથવા ST મહિલાઓ માટે (શહેરી ₹600).'],
+'Bring: BPL card or caste certificate if she has one.':['आणा: असल्यास BPL कार्ड किंवा जात प्रमाणपत्र.','लाएँ: अगर हो तो BPL कार्ड या जाति प्रमाणपत्र।','لائیں: اگر ہو تو BPL کارڈ یا ذات کا سرٹیفکیٹ۔','લાવો: હોય તો BPL કાર્ડ અથવા જાતિ પ્રમાણપત્ર.'],
+"Covered through the household's orange ration card.":['कुटुंबाच्या केशरी शिधापत्रिकेद्वारे संरक्षण.','परिवार के केसरिया राशन कार्ड से कवर।','گھرانے کے نارنجی راشن کارڈ کے ذریعے کوریج۔','પરિવારના કેસરી રેશન કાર્ડ દ્વારા કવર.'],
+'Age 70+. Card created Feb 2026 through Aadhaar e-KYC. Extra ₹5 lakh hospital cover a year, any income.':['वय 70+. Feb 2026 मध्ये आधार e-KYC द्वारे कार्ड बनले. उत्पन्न कितीही असो, दरवर्षी अतिरिक्त ₹5 लाख रुग्णालय संरक्षण.','उम्र 70+। Feb 2026 में आधार e-KYC से कार्ड बना। आय कोई भी हो, सालाना अतिरिक्त ₹5 लाख अस्पताल कवर।','عمر 70+۔ Feb 2026 میں آدھار e-KYC سے کارڈ بنا۔ آمدنی چاہے جو ہو، سالانہ اضافی ₹5 لاکھ اسپتال کوریج۔','ઉંમર 70+. Feb 2026 માં આધાર e-KYC દ્વારા કાર્ડ બન્યું. આવક ગમે તે હોય, વર્ષે વધારાનું ₹5 લાખ હોસ્પિટલ કવર.'],
+'Yellow ration card.':['पिवळी शिधापत्रिका.','पीला राशन कार्ड।','پیلا راشن کارڈ۔','પીળું રેશન કાર્ડ.'],
+'Geriatric OPD at the civil hospital: free check-ups and support devices.':['जिल्हा रुग्णालयातील ज्येष्ठ नागरिक OPD: मोफत तपासणी आणि सहाय्यक साधने.','सिविल अस्पताल में बुज़ुर्गों की OPD: मुफ़्त जाँच और सहायक उपकरण।','سول اسپتال میں بزرگوں کی OPD: مفت معائنہ اور معاون آلات۔','સિવિલ હોસ્પિટલમાં વડીલો માટે OPD: મફત તપાસ અને સહાયક સાધનો.'],
+'See the doctor from the nearby Arogya Mandir instead of travelling to Solapur.':['सोलापूरला न जाता जवळच्या आरोग्य मंदिरातून डॉक्टरांना भेटा.','सोलापुर जाने के बजाय पास के आरोग्य मंदिर से डॉक्टर से मिलें।','سولاپور جانے کے بجائے قریبی آروگیہ مندر سے ڈاکٹر سے ملیں۔','સોલાપુર જવાને બદલે નજીકના આરોગ્ય મંદિરથી ડૉક્ટરને મળો.'],
+'Free tests and treatment at Public Health Dept & civic hospitals in Maharashtra':['महाराष्ट्रातील सार्वजनिक आरोग्य विभाग व महापालिका रुग्णालयांत मोफत तपासण्या व उपचार','महाराष्ट्र के सार्वजनिक स्वास्थ्य विभाग और नगर निगम अस्पतालों में मुफ़्त जाँच और इलाज','مہاراشٹر کے محکمہ صحت عامہ اور میونسپل اسپتالوں میں مفت ٹیسٹ اور علاج','મહારાષ્ટ્રના જાહેર આરોગ્ય વિભાગ અને મહાનગરપાલિકા હોસ્પિટલોમાં મફત તપાસ અને સારવાર'],
+'Free essential medicines and tests at public facilities (NHM)':['सरकारी आरोग्य केंद्रांत आवश्यक औषधे व तपासण्या मोफत (NHM)','सरकारी केंद्रों पर ज़रूरी दवाइयाँ और जाँच मुफ़्त (NHM)','سرکاری مراکز پر ضروری دوائیں اور ٹیسٹ مفت (NHM)','સરકારી કેન્દ્રોમાં જરૂરી દવાઓ અને તપાસ મફત (NHM)'],
+'108 — free emergency ambulance':['108 — मोफत आपत्कालीन रुग्णवाहिका','108 — मुफ़्त आपातकालीन एम्बुलेंस','108 — مفت ہنگامی ایمبولینس','108 — મફત ઇમરજન્સી ઍમ્બ્યુલન્સ'],
+'104 — health helpline and complaints':['104 — आरोग्य हेल्पलाइन व तक्रारी','104 — स्वास्थ्य हेल्पलाइन और शिकायतें','104 — صحت ہیلپ لائن اور شکایات','104 — આરોગ્ય હેલ્પલાઇન અને ફરિયાદો'],
+'14416 — Tele-MANAS mental health helpline, free, 24×7':['14416 — टेली-मानस मानसिक आरोग्य हेल्पलाइन, मोफत, 24×7','14416 — टेली-मानस मानसिक स्वास्थ्य हेल्पलाइन, मुफ़्त, 24×7','14416 — ٹیلی مانس ذہنی صحت ہیلپ لائن، مفت، 24×7','14416 — ટેલી-માનસ માનસિક આરોગ્ય હેલ્પલાઇન, મફત, 24×7'],
+'Free teleconsultation at any Ayushman Arogya Mandir':['कोणत्याही आयुष्मान आरोग्य मंदिरात मोफत टेलिकन्सल्टेशन','किसी भी आयुष्मान आरोग्य मंदिर में मुफ़्त टेलीकंसल्टेशन','کسی بھی آیوشمان آروگیہ مندر میں مفت ٹیلی کنسلٹیشن','કોઈપણ આયુષ્માન આરોગ્ય મંદિરમાં મફત ટેલિકન્સલ્ટેશન'],
+'TB: free tests and medicines, plus ₹1,000 a month during treatment':['क्षयरोग: मोफत तपासण्या व औषधे, आणि उपचारादरम्यान दरमहा ₹1,000','टीबी: मुफ़्त जाँच और दवाइयाँ, साथ में इलाज के दौरान हर महीने ₹1,000','ٹی بی: مفت ٹیسٹ اور دوائیں، ساتھ میں علاج کے دوران ہر مہینے ₹1,000','ટીબી: મફત તપાસ અને દવાઓ, ઉપરાંત સારવાર દરમિયાન દર મહિને ₹1,000']
+};
+function T(k,v){const a=UI[k];let s=a?(a[LI[lang]]||a[0]):k;if(v)for(const x in v)if(v[x]!=null)s=s.split('{'+x+'}').join(v[x]);return s;}
+function tr(s){if(lang==='en'||s==null)return s;const a=DT[s];return (a&&a[LI[lang]-1])||s;}
+function dispName(p){return lang==='en'?p.name:((p.names&&p.names[lang])||p.name);}
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const byKey=k=>PATIENTS.find(p=>p.key===k);
+function resolvePayload(t){if(!t)return null;t=String(t).trim();if(t.startsWith(QR_PREFIX))return byKey(t.slice(QR_PREFIX.length));if(t.startsWith(QR_SHORT))return byKey(t.slice(QR_SHORT.length));const d=t.replace(/\D/g,'');return d.length>=4?PATIENTS.find(p=>p.abha.replace(/\D/g,'').endsWith(d)):null;}
+
+/* ---------------- routing ---------------- */
+function route(){
+  const v=location.hash==='#cards'?'cards':'scan';
+  $('#view-scan').hidden=v!=='scan';$('#view-cards').hidden=v!=='cards';
+  for(const [id,on] of [['#tab-scan',v==='scan'],['#tab-cards',v==='cards']]){if(on)$(id).setAttribute('aria-current','page');else $(id).removeAttribute('aria-current');}
+  if(v==='cards'){stopCamera();buildCards();}
+  else if(!current)startCamera(false);
+}
+addEventListener('hashchange',route);
+
+/* ---------------- camera + lock-on ---------------- */
+const video=$('#video'),overlay=$('#overlay'),freeze=$('#freeze'),vf=$('#vf'),msg=$('#vfmsg');
+let stream=null,facing='environment',running=false,bd=null,lastSeen=0,hits=[],captured=false;
+let cur=null,target=null,mode='idle',modeT=0,captureP=null;
+const work=document.createElement('canvas'),wctx=work.getContext('2d',{willReadFrequently:true});
+if('BarcodeDetector' in window){try{bd=new BarcodeDetector({formats:['qr_code']});}catch(e){bd=null;}}
+
+let offState=null,msgState={k:'point'};
+function showOff(tk,xk,btn){offState={tk,xk,btn};$('#vfoff').hidden=false;msg.hidden=true;$('#offtitle').textContent=T(tk);$('#offtext').textContent=T(xk);$('#startcam').hidden=!btn;}
+async function startCamera(fromClick){
+  if(stream||current)return;
+  captured=false;hits=[];mode='idle';freeze.hidden=true;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){showOff('noCamTitle','noCamText',false);return;}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}}});
+    video.srcObject=stream;await video.play();
+    $('#vfoff').hidden=true;msg.hidden=false;setMsg('point');
+    running=true;requestAnimationFrame(draw);scanLoop();
+  }catch(e){
+    stream=null;
+    if(!fromClick)showOff('offTitle','offText',true);
+    else showOff('blockedTitle','noCamText',false);
+  }
+}
+function stopCamera(){running=false;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}video.srcObject=null;}
+$('#startcam').addEventListener('click',()=>startCamera(true));
+$('#flip').addEventListener('click',()=>{facing=facing==='environment'?'user':'environment';stopCamera();startCamera(true);});
+function setMsg(k,ok,n){msgState={k,ok,n};msg.textContent=T(k,{n});msg.classList.toggle('ok',!!ok);}
+
+function geom(){const W=vf.clientWidth,H=vf.clientHeight,vw=video.videoWidth||1,vh=video.videoHeight||1;const s=Math.max(W/vw,H/vh);return {W,H,vw,vh,s,ox:(W-vw*s)/2,oy:(H-vh*s)/2};}
+function guide(){const {W,H}=geom();const g=Math.min(W,H)*0.62,x=(W-g)/2,y=(H-g)/2-10;return [{x,y},{x:x+g,y},{x:x+g,y:y+g},{x,y:y+g}];}
+
+async function detect(){
+  if(!video.videoWidth)return null;
+  if(bd){try{const r=await bd.detect(video);if(r&&r[0]&&r[0].cornerPoints&&r[0].cornerPoints.length===4)return {data:r[0].rawValue,pts:r[0].cornerPoints};}catch(e){bd=null;}}
+  const vw=video.videoWidth,vh=video.videoHeight,f=Math.min(1,720/Math.max(vw,vh));
+  work.width=Math.round(vw*f);work.height=Math.round(vh*f);wctx.drawImage(video,0,0,work.width,work.height);
+  const d=wctx.getImageData(0,0,work.width,work.height);
+  const r=jsQR(d.data,work.width,work.height,{inversionAttempts:'dontInvert'});
+  if(r&&r.data){const L=r.location;return {data:r.data,pts:[L.topLeftCorner,L.topRightCorner,L.bottomRightCorner,L.bottomLeftCorner].map(p=>({x:p.x/f,y:p.y/f}))};}
+  return null;
+}
+async function scanLoop(){
+  while(running&&!captured){
+    const t0=performance.now();
+    let r=null;try{r=await detect();}catch(e){}
+    if(!running||captured)break;
+    const now=performance.now();
+    if(r){
+      const g=geom();target=r.pts.map(p=>({x:p.x*g.s+g.ox,y:p.y*g.s+g.oy}));lastSeen=now;
+      const p=resolvePayload(r.data);
+      if(!p){mode='wrong';setMsg('wrongQr');hits=[];}
+      else{mode='track';hits.push({k:p.key,t:now});hits=hits.filter(h=>now-h.t<1200&&h.k===p.key);
+        setMsg('hold');
+        if(hits.length>=3){capture(p);break;}}
+    }else if(now-lastSeen>500){target=null;if(mode!=='idle'){mode='idle';setMsg('point');}hits=[];}
+    const dt=performance.now()-t0;await new Promise(res=>setTimeout(res,Math.max(40,120-dt)));
+  }
+}
+function capture(p){
+  captured=true;mode='lock';modeT=performance.now();captureP=p;
+  // freeze the frame
+  const g=geom(),dpr=devicePixelRatio||1;freeze.width=g.W*dpr;freeze.height=g.H*dpr;
+  const fx=freeze.getContext('2d');const sw=g.W/g.s,sh=g.H/g.s;fx.drawImage(video,(g.vw-sw)/2,(g.vh-sh)/2,sw,sh,0,0,freeze.width,freeze.height);
+  freeze.hidden=false;
+  const fl=$('#flash');fl.classList.remove('go');void fl.offsetWidth;fl.classList.add('go');
+  try{navigator.vibrate&&navigator.vibrate(60);}catch(e){}
+  setMsg('captured',true,dispName(p));
+  stopStreamOnly();
+  setTimeout(()=>{running=false;openPatient(p);},1100);
+}
+function stopStreamOnly(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
+const lerp=(a,b,t)=>a+(b-a)*t;
+function draw(now){
+  if(!running)return;
+  const dpr=devicePixelRatio||1,W=vf.clientWidth,H=vf.clientHeight;
+  if(overlay.width!==Math.round(W*dpr)||overlay.height!==Math.round(H*dpr)){overlay.width=Math.round(W*dpr);overlay.height=Math.round(H*dpr);}
+  const x=overlay.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+  const tgt=target||guide();
+  if(!cur)cur=tgt.map(p=>({...p}));
+  const k=mode==='lock'?0.5:0.3;cur=cur.map((p,i)=>({x:lerp(p.x,tgt[i].x,k),y:lerp(p.y,tgt[i].y,k)}));
+  // padding outward from centre
+  const cx=cur.reduce((s,p)=>s+p.x,0)/4,cy=cur.reduce((s,p)=>s+p.y,0)/4;
+  const pad=mode==='idle'?0:14;const q=cur.map(p=>{const dx=p.x-cx,dy=p.y-cy,l=Math.hypot(dx,dy)||1;return {x:p.x+dx/l*pad,y:p.y+dy/l*pad};});
+  // dim outside when tracking
+  if(mode!=='idle'){x.fillStyle='rgba(0,0,0,.35)';x.beginPath();x.rect(0,0,W,H);x.moveTo(q[0].x,q[0].y);for(let i=3;i>=0;i--)x.lineTo(q[i].x,q[i].y);x.closePath();x.fill('evenodd');}
+  const color=mode==='lock'?'#3DDC84':mode==='track'?'#F0A35A':mode==='wrong'?'#FF8C80':'#FFFFFF';
+  const t=(now||0)/1000;
+  // idle breathing
+  const breathe=mode==='idle'?1+Math.sin(t*3)*0.03:1;
+  x.lineWidth=mode==='lock'?6:5;x.lineCap='round';x.lineJoin='round';x.strokeStyle=color;
+  for(let i=0;i<4;i++){const a=q[i],b=q[(i+1)%4],c=q[(i+3)%4];const L=0.22*breathe;
+    x.beginPath();x.moveTo(lerp(a.x,c.x,L),lerp(a.y,c.y,L));x.lineTo(a.x,a.y);x.lineTo(lerp(a.x,b.x,L),lerp(a.y,b.y,L));x.stroke();}
+  // scanning line in idle/track
+  if(mode==='idle'||mode==='track'){const s=(Math.sin(t*2.2)+1)/2;const p1={x:lerp(q[0].x,q[3].x,s),y:lerp(q[0].y,q[3].y,s)},p2={x:lerp(q[1].x,q[2].x,s),y:lerp(q[1].y,q[2].y,s)};
+    const gr=x.createLinearGradient(p1.x,p1.y,p2.x,p2.y);gr.addColorStop(0,'rgba(240,163,90,0)');gr.addColorStop(.5,mode==='track'?'rgba(240,163,90,.9)':'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(240,163,90,0)');
+    x.strokeStyle=gr;x.lineWidth=2;x.beginPath();x.moveTo(p1.x,p1.y);x.lineTo(p2.x,p2.y);x.stroke();}
+  // lock: fill + expanding ring
+  if(mode==='lock'){const e=Math.min(1,(performance.now()-modeT)/600);
+    x.fillStyle=`rgba(61,220,132,${0.28*(1-e)+0.08})`;x.beginPath();x.moveTo(q[0].x,q[0].y);q.slice(1).forEach(p=>x.lineTo(p.x,p.y));x.closePath();x.fill();
+    const R=Math.max(...q.map(p=>Math.hypot(p.x-cx,p.y-cy)));x.strokeStyle=`rgba(61,220,132,${1-e})`;x.lineWidth=4;x.beginPath();x.arc(cx,cy,R*(1+e*0.6),0,Math.PI*2);x.stroke();
+    x.fillStyle='#3DDC84';x.beginPath();x.arc(cx,cy,26,0,Math.PI*2);x.fill();x.strokeStyle='#0B1412';x.lineWidth=5;x.beginPath();x.moveTo(cx-11,cy);x.lineTo(cx-3,cy+8);x.lineTo(cx+12,cy-8);x.stroke();}
+  requestAnimationFrame(draw);
+}
+
+/* ---------------- photo fallback ---------------- */
+const status=$('#status');
+let statusState=null;
+function setStatus(kind,k){statusState=k?{kind,k}:null;status.innerHTML=k?`<div class="${kind}">${esc(T(k))}</div>`:'';}
+async function loadImg(file){try{return await createImageBitmap(file,{imageOrientation:'from-image'});}catch(e){const u=URL.createObjectURL(file);const im=new Image();im.src=u;await im.decode();return im;}}
+const tick0=()=>new Promise(r=>setTimeout(r,0));
+function jsqrOn(src,sx,sy,sw,sh,max){
+  const sc=Math.min(1,max/Math.max(sw,sh));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*sc));c.height=Math.max(1,Math.round(sh*sc));
+  const x=c.getContext('2d',{willReadFrequently:true});x.imageSmoothingQuality='high';x.drawImage(src,sx,sy,sw,sh,0,0,c.width,c.height);
+  const r=jsQR(x.getImageData(0,0,c.width,c.height).data,c.width,c.height,{inversionAttempts:'attemptBoth'});
+  return r&&r.data?r.data:null;
+}
+async function decodeImage(file){
+  const img=await loadImg(file);const iw=img.width||img.naturalWidth,ih=img.height||img.naturalHeight;
+  if(bd){try{const r=await bd.detect(img);if(r.length)return r[0].rawValue;}catch(e){}}
+  if(typeof jsQR!=='function')throw new Error('decoder missing');
+  // 1) whole photo and centre crops at several sizes (small sizes help with screen moiré and blur)
+  const crops=[[0,0,1],[0.15,0.15,0.7],[0.25,0.25,0.5]];
+  for(const max of [900,600,1300,450,1800])for(const [cx,cy,cs] of crops){
+    const t=jsqrOn(img,iw*cx,ih*cy,iw*cs,ih*cs,max);if(t)return t;await tick0();
+  }
+  // 2) overlapping tiles, for a card that sits off-centre or small in the frame
+  for(const f of [0.5,0.4])for(let gy=0;gy<=1-f+1e-6;gy+=f/2)for(let gx=0;gx<=1-f+1e-6;gx+=f/2){
+    for(const max of [700,450]){const t=jsqrOn(img,iw*gx,ih*gy,iw*f,ih*f,max);if(t)return t;}
+    await tick0();
+  }
+  return null;
+}
+$('#photo').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
+  setStatus('busy','reading');
+  try{const t=await decodeImage(f);const p=resolvePayload(t);
+    if(!t)setStatus('err','noQr');
+    else if(!p)setStatus('err','notProto');
+    else{setStatus('','');stopCamera();openPatient(p);}
+  }catch(err){setStatus('err','badPhoto');}
+});
+function renderChips(){$('#chips').innerHTML=PATIENTS.map(p=>`<button class="chip" data-k="${p.key}">${esc(dispName(p))}</button>`).join('');}
+$('#chips').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b){stopCamera();openPatient(byKey(b.dataset.k));}});
+$('#manual-form').addEventListener('submit',e=>{e.preventDefault();const p=resolvePayload($('#manual').value);if(p){setStatus('','');stopCamera();openPatient(p);}else setStatus('err','noPatient');});
+
+/* ---------------- profile ---------------- */
+let current=null,role='doctor',consented=false,timer=null,remaining=0;const SESSION=120;
+function openPatient(p){current=p;consented=false;role=userMode==='patient'?'patient':'doctor';$('#scanner').hidden=true;$('#profile').hidden=false;renderProfile();if(role==='patient')clearInterval(timer);else startTimer();scrollTo({top:0});}
+function closePatient(){current=null;clearInterval(timer);$('#profile').hidden=true;$('#profile').innerHTML='';$('#scanner').hidden=false;cur=null;target=null;startCamera(false);scrollTo({top:0});}
+function startTimer(){clearInterval(timer);remaining=SESSION;tick();timer=setInterval(()=>{remaining--;if(remaining<=0)closePatient();else tick();},1000);}
+function tick(){const t=$('#timer');if(t)t.textContent=`${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`;}
+['pointerdown','keydown','scroll'].forEach(ev=>addEventListener(ev,()=>{if(current)remaining=SESSION;},{passive:true}));
+const lockSVG='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const fpSVG='<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 11v3a8 8 0 0 1-1 4M8.5 7.5A5 5 0 0 1 17 11v1M7 11a5 5 0 0 0 .2 1.5M5 9a7.5 7.5 0 0 1 14 2M12 4a8 8 0 0 0-7 4M14.5 13a10 10 0 0 1-1 5M9.5 14a7 7 0 0 1-1 4"/></svg>';
+const CATALOG=[
+ {m:'MJPJAY',n:'MJPJAY + PM-JAY',w:'Cashless hospital care up to ₹5 lakh per family a year at listed hospitals.',f:'Families in Maharashtra with a yellow, orange or white ration card.'},
+ {m:'Vay Vandana',n:'Ayushman Vay Vandana (70+)',w:'Extra ₹5 lakh hospital cover a year.',f:'Everyone aged 70 or older, any income.'},
+ {m:'JSSK',n:'JSSK — free delivery & newborn care',w:'Free delivery including C-section, medicines, tests, blood, food and transport. Sick newborns covered up to 1 year.',f:'All pregnant women delivering in a government hospital.'},
+ {m:'PMSMA',n:'PMSMA — free specialist check-up on the 9th',w:'Free check-up by a specialist on the 9th of every month.',f:'Pregnant women in the 2nd or 3rd trimester.'},
+ {m:'PMMVY',n:'PMMVY 2.0 — ₹5,000 maternity benefit',w:'₹5,000 for the first child, paid in two parts; ₹6,000 if the second child is a girl.',f:'Pregnant and breastfeeding women with an Aadhaar-linked bank account.'},
+ {m:'JSY',n:'JSY — cash for hospital delivery',w:'Cash help for giving birth in a hospital.',f:'In Maharashtra: women who are BPL, SC or ST.'},
+ {m:'NPHCE',n:'Elderly care clinic (NPHCE)',w:'Elderly care OPD, check-ups and support devices at district hospitals.',f:'People aged 60 and above.'},
+ {m:'Ni-kshay',n:'Ni-kshay Poshan — TB nutrition support',w:'₹1,000 a month for food during TB treatment, plus free tests and medicines.',f:'Everyone being treated for TB.'},
+ {m:'RBSK',n:'RBSK — child health screening',w:'Free screening and treatment for birth defects, illness and growth delays.',f:'Children from birth to 18 years.'},
+ {m:'Tele-MANAS',n:'Tele-MANAS — mental health helpline',w:'Free counselling by phone in your language: call 14416, any time.',f:'Everyone.'}
+];
+function allSchemesPanel(p){
+  const has=c=>p.schemes.some(s=>s.name.includes(c.m)&&s.status==='active');
+  return `<div class="panel"><p class="eyebrow">${esc(T('allSchemes'))}</p><p class="hint" style="margin-bottom:6px">${esc(T('allSchemesHint'))}</p>
+    ${CATALOG.map(c=>`<details class="sch"><summary><span>${esc(tr(c.n))}</span>${has(c)?`<span class="pill active">${esc(T('youHave'))}</span>`:''}</summary>
+      <dl class="kv" style="margin-top:8px"><dt>${esc(T('whatYouGet'))}</dt><dd>${esc(tr(c.w))}</dd><dt>${esc(T('whoFor'))}</dt><dd>${esc(tr(c.f))}</dd></dl></details>`).join('')}</div>`;
+}
+
+function roleBtn(r){return `<button data-role="${r}" aria-pressed="${role===r}">${esc(T(r==='patient'?'patientRole':r))}</button>`;}
+const cardCache={};
+function renderPatientView(){
+  const p=current,R=RATION[p.ration],nm=dispName(p),sexk=p.sex.toLowerCase(),rc=p.rc;
+  const fam=p.family.length?`<ul class="clean fam">${p.family.map(f=>{const fp=byKey(f.key);return `<li><span><b>${esc(dispName(fp))}</b> · ${esc(tr(f.rel))}</span><span class="hint">${esc(tr(f.tag))}</span></li>`;}).join('')}</ul>`:`<p class="note">${esc(tr(p.familyNote))}</p>`;
+  const rcard=rc?`<section class="rcard" style="background:${R.fill};color:${R.ink}" aria-label="${esc(T('myRation'))}">
+      <div class="rc-top"><b>${esc(T('myRation'))}<br><span style="font-size:15px">${esc(T(p.ration))}</span></b><small>${esc(T('demoRation'))}</small></div>
+      <div class="rc-no"><bdi dir="ltr">${esc(rc.no)}</bdi></div>
+      <dl>
+        <dt>${esc(T('rcHead'))}</dt><dd>${esc(dispName(byKey(rc.head)))}</dd>
+        <dt>${esc(T('rcMembers'))}</dt><dd>${rc.members}</dd>
+        <dt>${esc(T('rcCat'))}</dt><dd>${esc(tr(rc.cat))}</dd>
+        <dt>${esc(T('rcIncome'))}</dt><dd>${esc(tr(rc.income))}</dd>
+        <dt>${esc(T('rcShop'))}</dt><dd>${esc(tr(rc.shop))}</dd>
+        <dt>${esc(T('rcGrain'))}</dt><dd>${esc(tr(rc.grain))}</dd>
+      </dl></section>
+      <p class="hint">${esc(T('rcNote'))}</p>`:'';
+  $('#profile').innerHTML=`<div class="stack">
+    <div class="topbar">
+      <div class="row"><button id="close">${esc(T('back'))}</button><span class="seg" role="group" aria-label="${esc(T('viewingAs'))}">${roleBtn('patient')}${roleBtn('desk')}${roleBtn('doctor')}</span></div>
+      <div class="langrow langbar" role="group" aria-label="${esc(T('langLabel'))}"></div>
+    </div>
+    <div class="panel"><div class="who"><div class="avatar" style="background:${p.color}">${esc(p.initials)}</div>
+      <div style="min-width:0"><h2>${esc(nm)}</h2>${lang!=='en'?`<div class="hint" lang="en">${esc(p.name)}</div>`:''}<div class="idline"><bdi dir="ltr">ABHA ${esc(p.abha)}</bdi></div>
+      <div class="tags"><span class="tag" style="background:${R.fill};color:${R.ink}">${esc(T(p.ration))}</span></div></div></div></div>
+    <div class="stack"><p class="eyebrow" style="margin:0">${esc(T('myCard'))}</p><img class="mycard" id="mycard" alt="${esc(T('myCard'))}"></div>
+    ${rcard}
+    <div class="panel"><p class="eyebrow">${esc(T('myBenefits'))}</p><ul class="clean">${p.schemes.map(s=>`<li class="scheme"><h3>${esc(tr(s.name))}</h3><span class="pill ${s.status}">${esc(T(LBLK[s.label]||'confirm'))}</span><p>${esc(tr(s.why))}</p>${s.bring?`<p class="bring">${esc(tr(s.bring))}</p>`:''}</li>`).join('')}</ul></div>
+    ${allSchemesPanel(p)}
+    <div class="panel"><details class="common" open><summary>${esc(T('common'))}</summary><ul>${COMMON.map(c=>`<li>${esc(tr(c))}</li>`).join('')}</ul></details></div>
+    <div class="panel"><p class="eyebrow">${esc(T('personal'))}</p><dl class="kv">
+      <dt>${esc(T('age'))}</dt><dd>${p.age} · ${esc(T('born'))} <bdi>${esc(tr(p.dob))}</bdi></dd>
+      <dt>${esc(T('sexBlood'))}</dt><dd>${esc(T(sexk))} · <bdi dir="ltr">${esc(p.blood)}</bdi></dd>
+      <dt>${esc(T('address'))}</dt><dd><bdi lang="en">${esc(p.address)}</bdi></dd>
+      <dt>${esc(T('phone'))}</dt><dd><bdi dir="ltr">${esc(tr(p.phone))}</bdi></dd>
+      <dt>${esc(T('allergies'))}</dt><dd>${esc(tr(p.allergies))}</dd></dl></div>
+    <div class="panel"><p class="eyebrow">${esc(T('family'))}</p>${fam}</div>
+    <div class="panel"><p class="eyebrow">${esc(T('myHistory'))}</p><p class="hint">${esc(T('myHistoryNote'))}</p>
+      ${p.pregnancy?`<p class="note" style="margin-top:10px">${esc(tr(p.pregnancy))}</p>`:''}
+      ${lang!=='en'?`<p class="hint" style="margin-top:6px">${esc(T('clinicalNote'))}</p>`:''}
+      <div lang="en" dir="ltr" style="margin-top:8px">${p.visits.map(v=>`<div class="visit${v.upcoming?' upcoming':''}"><time>${esc(v.date)}</time><div><b>${esc(v.what)}</b><span>${esc(v.place)}</span>${v.note?`<span>${esc(v.note)}</span>`:''}</div></div>`).join('')}</div>
+      <p class="eyebrow" style="margin-top:14px">${esc(T('curMeds'))}</p><div class="meds" lang="en" dir="ltr">${p.meds.current.map(m=>`<div class="med"><b>${esc(m.n)}</b><small>${esc(m.d)}</small><small>${esc(m.s)}</small></div>`).join('')}</div></div>
+  </div>`;
+  renderLangs();
+  const k=p.key+'-'+lang;
+  const put=u=>{const im=$('#mycard');if(im&&current===p)im.src=u;};
+  if(cardCache[k])put(cardCache[k]);else drawCard(p).then(c=>{cardCache[k]=c.toDataURL('image/png');put(cardCache[k]);}).catch(()=>{});
+}
+
+const LBLK={'Active':'active','Needs document':'needs','Confirm':'confirm','Suggest':'suggest'};
+function renderProfile(){
+  if(role==='patient')return renderPatientView();
+  const p=current,R=RATION[p.ration],nm=dispName(p),first=nm.split(' ')[0],sexk=p.sex.toLowerCase();
+  const fam=p.family.length?`<ul class="clean fam">${p.family.map(f=>{const fp=byKey(f.key);return `<li><span><b>${esc(dispName(fp))}</b> · ${esc(tr(f.rel))}</span><button class="chip" data-open="${f.key}">${esc(T('open'))} · ${esc(tr(f.tag))}</button></li>`;}).join('')}</ul>`:`<p class="note">${esc(tr(p.familyNote))}</p>`;
+  let clin;
+  if(role==='desk')clin=`<div class="locked"><div class="lockicon">${lockSVG}</div><p>${esc(T('deskLocked'))}</p></div>`;
+  else if(!consented)clin=`<div class="locked"><div class="lockicon">${lockSVG}</div><p><b>${esc(T('askApprove',{n:first}))}</b> ${esc(T('openOnce'))}</p><div class="row"><button class="primary" id="fp">${esc(T('fpBtn'))}</button><button id="otp">${esc(T('otpBtn'))}</button></div><div id="otpbox"></div></div>`;
+  else clin=`<p class="consentok">${esc(T('approved',{n:first}))}</p>
+    ${p.pregnancy?`<p class="note" style="margin-top:10px">${esc(tr(p.pregnancy))}</p>`:''}
+    ${lang!=='en'?`<p class="hint" style="margin-top:10px">${esc(T('clinicalNote'))}</p>`:''}
+    <p class="eyebrow" style="margin-top:14px">${esc(T('visits'))}</p>
+    <div lang="en" dir="ltr">${p.visits.map(v=>`<div class="visit${v.upcoming?' upcoming':''}"><time>${esc(v.date)}</time><div><b>${esc(v.what)}</b><span>${esc(v.place)}</span>${v.note?`<span>${esc(v.note)}</span>`:''}</div></div>`).join('')}</div>
+    <p class="eyebrow" style="margin-top:14px">${esc(T('curMeds'))}</p><div class="meds" lang="en" dir="ltr">${p.meds.current.map(m=>`<div class="med"><b>${esc(m.n)}</b><small>${esc(m.d)}</small><small>${esc(m.s)}</small></div>`).join('')}</div>
+    <p class="eyebrow" style="margin-top:14px">${esc(T('pastMeds'))}</p><div class="meds" lang="en" dir="ltr">${p.meds.past.map(m=>`<div class="med past"><b>${esc(m.n)}</b><small>${esc(m.d)}</small><small>${esc(m.s)}</small></div>`).join('')}</div>`;
+  $('#profile').innerHTML=`<div class="stack">
+    <div class="topbar">
+      <div class="row"><button id="close">${esc(T('next'))}</button><span class="hint">${esc(T('closesIn')).replace('{t}','<b id="timer" dir="ltr" style="font-variant-numeric:tabular-nums">2:00</b>')}</span></div>
+      <div class="row"><span class="hint">${esc(T('viewingAs'))}</span><span class="seg" role="group" aria-label="${esc(T('viewingAs'))}">${roleBtn('patient')}<button data-role="desk" aria-pressed="${role==='desk'}">${esc(T('desk'))}</button><button data-role="doctor" aria-pressed="${role==='doctor'}">${esc(T('doctor'))}</button></span></div>
+    </div>
+    <div class="panel"><div class="who"><div class="avatar" style="background:${p.color}">${esc(p.initials)}</div>
+      <div style="min-width:0"><h2>${esc(nm)}</h2>${lang!=='en'?`<div class="hint" lang="en">${esc(p.name)}</div>`:''}<div class="idline"><bdi dir="ltr">ABHA ${esc(p.abha)}</bdi></div>
+      <div class="tags"><span class="tag ok">${esc(T('verified'))}</span><span class="tag" style="background:${R.fill};color:${R.ink}">${esc(T(p.ration))}</span></div></div></div></div>
+    <div class="panel"><p class="eyebrow">${esc(T('personal'))}</p><dl class="kv">
+      <dt>${esc(T('age'))}</dt><dd>${p.age} · ${esc(T('born'))} <bdi>${esc(tr(p.dob))}</bdi></dd>
+      <dt>${esc(T('sexBlood'))}</dt><dd>${esc(T(sexk))} · <bdi dir="ltr">${esc(p.blood)}</bdi></dd>
+      <dt>${esc(T('address'))}</dt><dd><bdi lang="en">${esc(p.address)}</bdi></dd>
+      <dt>${esc(T('phone'))}</dt><dd><bdi dir="ltr">${esc(tr(p.phone))}</bdi><br><small class="hint">${esc(tr(p.phoneNote))}</small></dd>
+      <dt>${esc(T('ration'))}</dt><dd><span class="row" style="gap:6px"><i class="swatch" style="background:${R.fill}"></i>${esc(T(p.ration))}</span></dd>
+      <dt>${esc(T('work'))}</dt><dd>${esc(tr(p.occupation))}</dd>
+      <dt>${esc(T('allergies'))}</dt><dd>${esc(tr(p.allergies))}</dd></dl></div>
+    <div class="panel"><p class="eyebrow">${esc(T('family'))}</p>${fam}</div>
+    <div class="panel"><p class="eyebrow">${esc(T('schemesFor',{n:first}))}</p><ul class="clean">${p.schemes.map(s=>`<li class="scheme"><h3>${esc(tr(s.name))}</h3><span class="pill ${s.status}">${esc(T(LBLK[s.label]||'confirm'))}</span><p>${esc(tr(s.why))}</p>${s.bring?`<p class="bring">${esc(tr(s.bring))}</p>`:''}</li>`).join('')}</ul>
+      <p class="hint" style="margin-top:10px">${esc(T('flags'))}</p></div>
+    <div class="panel"><details class="common"><summary>${esc(T('common'))}</summary><ul>${COMMON.map(c=>`<li>${esc(tr(c))}</li>`).join('')}</ul></details></div>
+    <div class="panel"><p class="eyebrow">${esc(T('history'))}</p>${clin}</div>
+  </div>`;
+  tick();
+}
+$('#profile').addEventListener('click',e=>{
+  const t=e.target.closest('button');if(!t)return;
+  if(t.id==='close')return closePatient();
+  if(t.dataset.role){role=t.dataset.role;if(role==='patient'){clearInterval(timer);setLang(patientLang);}else{startTimer();setLang('en');}return;}
+  if(t.dataset.open){openPatient(byKey(t.dataset.open));return;}
+  if(t.id==='fp'){$('#otpbox').innerHTML='<div class="fp">'+fpSVG+'</div>';setTimeout(()=>{consented=true;renderProfile();},1000);return;}
+  if(t.id==='otp'){
+    $('#otpbox').innerHTML=`<form class="row" id="otpf" style="flex-wrap:nowrap"><input class="txt" id="otpin" inputmode="numeric" maxlength="4" placeholder="${esc(T('otpPh'))}" aria-label="OTP"><button class="primary" type="submit">${esc(T('verify'))}</button></form><p class="hint" style="margin-top:6px">${esc(T('demoOtp'))}</p>`;
+    $('#otpf').addEventListener('submit',ev=>{ev.preventDefault();if($('#otpin').value==='4821'){consented=true;renderProfile();}else $('#otpin').style.borderColor='var(--bad)';});
+  }
+});
+
+/* ---------------- cards ---------------- */
+let built=false,downloads=null,buildTok=0;
+(async()=>{try{downloads=await window.claude?.use?.('downloads');}catch(e){downloads=null;}if(built&&downloads)buildCards(true);})();
+function rr(x,X,Y,W,H,R){x.beginPath();x.moveTo(X+R,Y);x.arcTo(X+W,Y,X+W,Y+H,R);x.arcTo(X+W,Y+H,X,Y+H,R);x.arcTo(X,Y+H,X,Y,R);x.arcTo(X,Y,X+W,Y,R);x.closePath();}
+function fit(x,txt,font,size,maxW,min){let s=size;do{x.font=font.replace('{s}',s);if(x.measureText(txt).width<=maxW)break;s-=1;}while(s>min);return s;}
+function wrap(x,txt,X,Y,maxW,lh,maxLines){const w=txt.split(' ');const lines=[];let line='';for(const word of w){const t=line?line+' '+word:word;if(x.measureText(t).width>maxW&&line){lines.push(line);line=word;}else line=t;}lines.push(line);
+  lines.slice(0,maxLines).forEach((l,i)=>{let s=l;if(i===maxLines-1&&lines.length>maxLines){while(x.measureText(s+'…').width>maxW&&s.length)s=s.slice(0,-1);s+='…';}x.fillText(s,X,Y+i*lh);});}
+const CS='"IBM Plex Sans","Noto Sans Devanagari","Noto Sans Gujarati","Noto Naskh Arabic",Arial,sans-serif';
+const CD='Archivo,"Noto Sans Devanagari","Noto Sans Gujarati","Noto Naskh Arabic",Arial,sans-serif';
+const CM='"IBM Plex Mono",ui-monospace,monospace';
+function cardLbl(k){const en=UI[k][0].toUpperCase();return lang==='en'?en:T(k)+' · '+en;}
+let fontsReady=null;
+function loadFonts(){if(!fontsReady)fontsReady=Promise.all([['800 40px Archivo','A'],['600 20px "IBM Plex Sans"','A'],['400 20px "IBM Plex Sans"','A'],['500 20px "IBM Plex Mono"','0'],['600 20px "Noto Sans Devanagari"','अ'],['400 20px "Noto Sans Devanagari"','अ'],['600 20px "Noto Sans Gujarati"','અ'],['400 20px "Noto Sans Gujarati"','અ'],['600 20px "Noto Naskh Arabic"','ا'],['400 20px "Noto Naskh Arabic"','ا']].map(([f,t])=>document.fonts.load(f,t).catch(()=>null))).then(()=>document.fonts.ready).catch(()=>null);return fontsReady;}
+async function drawCard(p){
+  await loadFonts();
+  const W=1012,H=638,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.direction='ltr';
+  const R=RATION[p.ration],reg=lang!=='en';
+  rr(x,0,0,W,H,34);x.save();x.clip();
+  x.fillStyle='#FFFFFF';x.fillRect(0,0,W,H);
+  // header band
+  x.fillStyle='#0F5C55';x.fillRect(0,0,W,88);
+  x.textBaseline='middle';x.fillStyle='#FFFFFF';x.font=`800 34px ${CD}`;x.fillText('ABHA Health ID',40,45);
+  if(reg){const w=x.measureText('ABHA Health ID').width;x.fillStyle='#BFE3DD';x.font=`600 24px ${CS}`;x.fillText(T('cardTitle'),40+w+18,47);}
+  x.font=`500 15px ${CM}`;x.textAlign='right';x.fillStyle='#BFE3DD';x.fillText('DEMO CARD · NOT OFFICIAL',W-40,45);x.textAlign='left';
+  // ration colour band
+  const BH=86;x.fillStyle=R.fill;x.fillRect(0,H-BH,W,BH);
+  if(p.ration==='white'){x.fillStyle='#D8E1DC';x.fillRect(0,H-BH,W,2);}
+  x.fillStyle=R.ink;x.font=`600 15px ${CS}`;x.fillText(cardLbl('ration'),40,H-BH/2-14);
+  const col=reg?T(p.ration+'S')+' · '+UI[p.ration+'S'][0]:UI[p.ration+'S'][0];
+  x.font=`800 28px ${CD}`;x.fillText(col,40,H-BH/2+14);
+  x.textAlign='right';x.font=`400 16px ${CS}`;x.fillText(T('recordsOpen'),W-40,H-BH/2-12);x.fillText(T('lost'),W-40,H-BH/2+14);x.textAlign='left';
+  // photo
+  const PX=40,PY=118,PW=170,PH=206;rr(x,PX,PY,PW,PH,16);x.fillStyle=p.color;x.fill();
+  x.save();rr(x,PX,PY,PW,PH,16);x.clip();x.fillStyle='rgba(255,255,255,.16)';x.beginPath();x.arc(PX+PW/2,PY+86,50,0,Math.PI*2);x.fill();x.beginPath();x.ellipse(PX+PW/2,PY+PH+10,82,70,0,Math.PI,0);x.fill();x.restore();
+  x.fillStyle='#FFFFFF';x.font=`800 46px ${CD}`;x.textAlign='center';x.fillText(p.initials,PX+PW/2,PY+90);x.textAlign='left';
+  // QR: short payload → version 1 (21 modules) → big modules that read easily off a screen or a photo
+  const QS=268,QB=QS+48,QX=W-40-QB,QY=112;
+  x.fillStyle='#FFFFFF';rr(x,QX,QY,QB,QB,14);x.fill();x.strokeStyle='#D8E1DC';x.lineWidth=2;x.stroke();
+  const q=qrcode(0,'M');q.addData(QR_SHORT+p.key);q.make();const n=q.getModuleCount(),m=Math.floor(QS/n),qs=m*n,qx=Math.round(QX+(QB-qs)/2),qy=Math.round(QY+(QB-qs)/2);
+  x.fillStyle='#000000';for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect(qx+k*m,qy+r*m,m,m);
+  // text column
+  const TX=PX+PW+28,TW=QX-24-TX;
+  x.textBaseline='alphabetic';x.fillStyle='#13231F';
+  const ns=fit(x,p.name,`800 {s}px ${CD}`,36,TW,22);x.font=`800 ${ns}px ${CD}`;x.fillText(p.name,TX,PY+30);
+  let y=PY+30;
+  if(reg){const rn=dispName(p);const rs=fit(x,rn,`600 {s}px ${CS}`,26,TW,16);x.font=`600 ${rs}px ${CS}`;x.fillStyle='#0F5C55';y+=36;x.fillText(rn,TX,y);}
+  x.fillStyle='#56655F';const sl=`${T(p.sex.toLowerCase())} · ${T('born')} ${tr(p.dob)}`;const ss=fit(x,sl,`400 {s}px ${CS}`,19,TW,13);x.font=`400 ${ss}px ${CS}`;y+=34;x.fillText(sl,TX,y);
+  y+=reg?38:44;x.font=`600 13px ${CS}`;x.fillText(cardLbl('address'),TX,y);
+  x.fillStyle='#13231F';x.font=`400 18px ${CS}`;wrap(x,p.address,TX,y+26,TW,25,reg?2:3);
+  // ABHA number
+  x.fillStyle='#56655F';x.font=`600 13px ${CS}`;x.fillText(cardLbl('abhaNo'),PX,PY+PH+46);
+  x.fillStyle='#13231F';const as=fit(x,p.abha,`500 {s}px ${CM}`,36,QX-24-PX,22);x.font=`500 ${as}px ${CM}`;x.fillText(p.abha,PX,PY+PH+88);
+  x.fillStyle='#56655F';const sa=T('scanAt');const sz=fit(x,sa,`600 {s}px ${CS}`,14,QB,10);x.font=`600 ${sz}px ${CS}`;x.textAlign='center';x.fillText(sa,QX+QB/2,QY+QB+28);x.textAlign='left';
+  x.restore();
+  return c;
+}
+async function buildCards(force){
+  if(built&&!force)return;built=true;const tok=++buildTok;
+  const host=$('#cards');host.innerHTML='';
+  for(const p of PATIENTS){
+    const c=await drawCard(p);if(tok!==buildTok)return;
+    const w=document.createElement('div');w.className='card-wrap';
+    w.innerHTML=`<img alt="ABHA demo card: ${esc(p.name)}" src="${c.toDataURL('image/png')}"><div class="row" style="justify-content:space-between"><span><b>${esc(dispName(p))}</b> · <span class="hint">${esc(T(p.ration))}</span></span>${downloads?`<button data-save>${esc(T('save'))}</button>`:''}</div>`;
+    host.appendChild(w);
+    w.querySelector('[data-save]')?.addEventListener('click',async ev=>{const b=ev.currentTarget;try{const blob=await new Promise(r=>c.toBlob(r,'image/png'));await downloads.save({filename:`ABHA-demo-${p.key}-${lang}.png`,data:blob});b.textContent=T('saved');}catch(e){b.textContent=T('notSaved');}});
+  }
+}
+
+/* ---------------- language switch + start ---------------- */
+function renderLangs(){const h=LANGS.map(([c,n])=>`<button lang="${c}" data-l="${c}" aria-pressed="${c===lang}">${n}</button>`).join('');document.querySelectorAll('.langbar').forEach(el=>{el.innerHTML=h;});}
+document.addEventListener('click',e=>{const b=e.target.closest('.langbar [data-l]');if(b&&b.dataset.l!==lang)setLang(b.dataset.l,true);});
+let userMode='staff',patientLang='en';
+function setMode(m,save){userMode=m==='patient'?'patient':'staff';if(save){try{localStorage.setItem('abha-mode',userMode);}catch(e){}}
+  document.querySelectorAll('#modeseg [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===userMode)));
+  $('#scanlangs').hidden=userMode!=='patient';setLang(userMode==='patient'?patientLang:'en');}
+$('#modeseg').addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(b)setMode(b.dataset.mode,true);});
+function setLang(l,save){
+  lang=LI[l]!=null?l:'en';const h=document.documentElement;h.lang=lang;h.dir=lang==='ur'?'rtl':'ltr';
+  if(save){patientLang=lang;try{localStorage.setItem('abha-lang',lang);}catch(e){}}
+  document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=T(el.dataset.i);});
+  document.querySelectorAll('[data-ph]').forEach(el=>{el.placeholder=T(el.dataset.ph);});
+  renderLangs();renderChips();
+  if(!$('#vfoff').hidden&&offState)showOff(offState.tk,offState.xk,offState.btn);
+  if(msgState)setMsg(msgState.k,msgState.ok,msgState.n);
+  if(statusState)setStatus(statusState.kind,statusState.k);
+  if(current)renderProfile();
+  built=false;if(!$('#view-cards').hidden)buildCards();
+}
+let savedMode='staff';try{patientLang=localStorage.getItem('abha-lang')||'en';savedMode=localStorage.getItem('abha-mode')||'staff';}catch(e){}
+if(LI[patientLang]==null)patientLang='en';
+setMode(savedMode,false);
+route();
+</script>
+
+</body></html>
